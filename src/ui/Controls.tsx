@@ -13,18 +13,18 @@ interface ControlsProps {
 const SPEEDS = [0.5, 1, 2, 4]
 
 export function Controls({ phase, speed, onSpeedChange, onRun, onStop, onReset, engineReady }: ControlsProps) {
-  const running = phase === 'running'
+  const busy = phase === 'running' || phase === 'awaiting_input'
   return (
     <div className="controls">
       <button
         className="btn btn--primary"
         onClick={onRun}
-        disabled={running || !engineReady}
+        disabled={busy || !engineReady}
         title={!engineReady ? 'Python-motorn laddas...' : undefined}
       >
         {engineReady ? 'Kör kod' : 'Laddar Python…'}
       </button>
-      <button className="btn btn--ghost" onClick={onStop} disabled={!running}>
+      <button className="btn btn--ghost" onClick={onStop} disabled={!busy}>
         Stoppa
       </button>
       <button className="btn btn--ghost" onClick={onReset}>

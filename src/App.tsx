@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { LEVELS } from './levels/levels'
+import { LEVELS, WORLDS } from './levels/levels'
 import { useLevelSession } from './hooks/useLevelSession'
 import { GameWorld } from './game/GameWorld'
+import { ControlCenterScene } from './game/ControlCenterScene'
 import { CodeEditor } from './editor/CodeEditor'
 import { ObjectivePanel } from './ui/ObjectivePanel'
 import { Controls } from './ui/Controls'
 import { HintPanel } from './ui/HintPanel'
 import { ErrorPanel } from './ui/ErrorPanel'
+import { ConsolePanel } from './ui/ConsolePanel'
+import { VariableInspector } from './ui/VariableInspector'
+import { DashboardPanel } from './ui/DashboardPanel'
+import { InventoryPanel } from './ui/InventoryPanel'
+import { DictionaryPanel } from './ui/DictionaryPanel'
+import { FunctionMachinePanel } from './ui/FunctionMachinePanel'
+import { ObjectWorkshopPanel } from './ui/ObjectWorkshopPanel'
 import { CompletionModal } from './ui/CompletionModal'
 
 export default function App() {
@@ -16,6 +24,25 @@ export default function App() {
 
   const level = LEVELS[levelIndex]
   const session = useLevelSession(level)
+
+  const navGroups = useMemo(() => {
+    const groups: { world: string; title: string; items: { level: (typeof LEVELS)[number]; index: number }[] }[] = []
+    LEVELS.forEach((l, i) => {
+      const last = groups[groups.length - 1]
+      if (last && last.world === l.world) {
+        last.items.push({ level: l, index: i })
+      } else {
+        groups.push({
+          world: l.world,
+          title: WORLDS.find((w) => w.id === l.world)?.title ?? l.world,
+          items: [{ level: l, index: i }]
+        })
+      }
+    })
+    return groups
+  }, [])
+
+  const worldTitle = WORLDS.find((w) => w.id === level.world)?.title ?? level.world
 
   useEffect(() => {
     setModalDismissed(false)
@@ -44,6 +71,35 @@ export default function App() {
     if (!isLastLevel) setLevelIndex((i) => i + 1)
   }
 
+  const worldView = (() => {
+    switch (level.type) {
+      case 'robot':
+        return <GameWorld level={level} worldState={session.worldState} lastStep={session.lastStep} />
+      case 'dashboard':
+        return <DashboardPanel variables={session.finalVariables} watch={level.watchVariables ?? []} />
+      case 'inventory':
+        return <InventoryPanel variables={session.finalVariables} listName={level.watchList ?? ''} />
+      case 'dictionary':
+        return <DictionaryPanel variables={session.finalVariables} dictName={level.watchDict ?? ''} />
+      case 'function':
+        return <FunctionMachinePanel lastCall={session.lastCall} lastReturn={session.lastReturn} />
+      case 'class':
+        return <ObjectWorkshopPanel variables={session.finalVariables} />
+      case 'terminal':
+        return level.showVariables ? <VariableInspector variables={session.finalVariables} /> : null
+      case 'scene':
+        return (
+          <ControlCenterScene
+            sceneId={level.visualScene ?? ''}
+            variables={session.currentVariables}
+            consoleLines={session.consoleLines}
+          />
+        )
+      default:
+        return null
+    }
+  })()
+
   return (
     <div className="app">
       <header className="app-header">
@@ -52,22 +108,29 @@ export default function App() {
           Kodrobot
         </div>
         <nav className="level-nav">
-          {LEVELS.map((l, i) => (
-            <button
-              key={l.id}
-              className={`level-nav__item${i === levelIndex ? ' level-nav__item--active' : ''}${
-                completed.has(l.id) ? ' level-nav__item--done' : ''
-              }`}
-              onClick={() => setLevelIndex(i)}
-              title={l.title}
-            >
-              {completed.has(l.id) ? '✓' : l.id}
-            </button>
+          {navGroups.map((group) => (
+            <div className="level-nav__group" key={group.world}>
+              <span className="level-nav__world">{group.title}</span>
+              <div className="level-nav__row">
+                {group.items.map(({ level: l, index: i }) => (
+                  <button
+                    key={l.id}
+                    className={`level-nav__item${i === levelIndex ? ' level-nav__item--active' : ''}${
+                      completed.has(l.id) ? ' level-nav__item--done' : ''
+                    }`}
+                    onClick={() => setLevelIndex(i)}
+                    title={l.title}
+                  >
+                    {completed.has(l.id) ? '✓' : l.id}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </header>
 
-      <ObjectivePanel level={level} levelIndex={levelIndex} totalLevels={LEVELS.length} />
+      <ObjectivePanel level={level} levelIndex={levelIndex} totalLevels={LEVELS.length} worldTitle={worldTitle} />
 
       {level.intro.length > 0 && (
         <div className="intro-banner">
@@ -79,8 +142,8 @@ export default function App() {
 
       <main className="main-split">
         <section className="panel panel--world">
-          <GameWorld level={level} worldState={session.worldState} lastStep={session.lastStep} />
-          {session.lastActionNote && session.phase === 'running' && (
+          {worldView}
+          {level.type === 'robot' && session.lastActionNote && session.phase === 'running' && (
             <div className="world-note">{session.lastActionNote}</div>
           )}
         </section>
@@ -90,8 +153,18 @@ export default function App() {
             value={session.code}
             onChange={session.setCode}
             highlightedLine={session.highlightedLine}
-            readOnly={session.phase === 'running'}
+            readOnly={session.phase === 'running' || session.phase === 'awaiting_input'}
           />
+          {level.type === 'scene' && level.showVariables && (
+            <VariableInspector variables={session.currentVariables} compact />
+          )}
+          {level.showConsole && (
+            <ConsolePanel
+              lines={session.consoleLines}
+              pendingPrompt={session.pendingPrompt}
+              onSubmit={session.submitInput}
+            />
+          )}
         </section>
       </main>
 
@@ -99,7 +172,9 @@ export default function App() {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.
+          {level.type === 'robot'
+            ? 'Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.'
+            : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.'}
         </div>
       )}
 

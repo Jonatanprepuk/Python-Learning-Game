@@ -1,187 +1,282 @@
-import type { LevelDefinition, TileKind } from '../types'
+import type { LevelDefinition, SnapshotValue, TileKind } from '../types'
 
-// Small ASCII helper so grids stay readable:
-// # = wall, . = empty, R = resource, G = goal, S = start (rendered as empty)
-function parseGrid(rows: string[]): TileKind[][] {
-  const map: Record<string, TileKind> = {
-    '#': 'wall',
-    '.': 'empty',
-    R: 'resource',
-    G: 'goal',
-    S: 'empty'
-  }
-  return rows.map((row) => row.split('').map((ch) => map[ch] ?? 'empty'))
+// Non-"robot" levels don't need a grid, but LevelDefinition keeps
+// tileGrid/playerStart required so the shared session/world-state plumbing
+// doesn't need to branch on level type.
+const NO_GRID: Pick<LevelDefinition, 'width' | 'height' | 'tileGrid' | 'playerStart'> = {
+  width: 1,
+  height: 1,
+  tileGrid: [['empty'] as TileKind[]],
+  playerStart: { x: 0, y: 0, direction: 'right' }
 }
+
+function asNumber(v: SnapshotValue | undefined): number | null {
+  return typeof v === 'number' ? v : null
+}
+
+export const WORLDS: { id: string; title: string }[] = [{ id: 'kontrollcentralen', title: 'Kontrollcentralen' }]
 
 export const LEVELS: LevelDefinition[] = [
   {
     id: 1,
-    title: 'Första steget',
-    concept: 'move()',
-    objective: 'Få roboten att nå den gröna rutan.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'screen',
+    title: 'Starta kontrollcentralen',
+    concept: 'print() och strängar',
+    objective: 'Få den stora skärmen att visa SYSTEM ONLINE.',
     intro: [
-      'Välkommen till forskningsstationen! Din robot väntar på instruktioner.',
-      'Kommandot move() flyttar roboten ett steg framåt i den riktning den tittar.'
+      'Du har kommit fram till en övergiven teknisk anläggning. Kontrollrummet är mörkt och tyst.',
+      'Den stora skärmen väntar på sitt startmeddelande.'
     ],
-    width: 6,
-    height: 3,
-    tileGrid: parseGrid(['######', '#S..G#', '######']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()'],
-    starterCode: 'move()',
+    ...NO_GRID,
+    availableCommands: ['print()', '"text" (str)'],
+    starterCode: 'print("SYSTEM OFFLINE")\n',
     hints: [
-      'Roboten behöver flytta sig tre steg för att nå målet.',
-      'Du kan skriva move() flera gånger, en gång per rad.',
-      'Prova:\nmove()\nmove()\nmove()'
+      'Texten som ska visas står mellan citattecken: " ".',
+      'Ändra texten SYSTEM OFFLINE till SYSTEM ONLINE.',
+      'Prova:\nprint("SYSTEM ONLINE")'
     ],
-    successTip: 'Bra jobbat! move() flyttar roboten ett steg framåt varje gång den anropas.'
+    successTip: 'print() skriver ut exakt den text du ger den, tecken för tecken.',
+    showConsole: true,
+    successCheck: (ctx) => ctx.consoleLines.some((line) => line.trim() === 'SYSTEM ONLINE')
   },
   {
     id: 2,
-    title: 'Runt hörnet',
-    concept: 'sekvenser + turn_right()',
-    objective: 'Ta dig runt hörnet och nå den gröna rutan.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'nametag',
+    title: 'Ge roboten ett namn',
+    concept: 'variabler och str',
+    objective: 'Registrera robotens anropsnamn som NOVA.',
     intro: [
-      'Den här gången ligger målet runt ett hörn.',
-      'Använd turn_right() för att vrida roboten 90 grader åt höger.'
+      'I ett hörn av kontrollrummet vaknar en robot i sin laddstation. Namnskylten på bröstet är tom: ???',
+      'En variabel är ett namn som pekar på ett värde – just nu pekar robot_name på fel text.'
     ],
-    width: 6,
-    height: 5,
-    tileGrid: parseGrid(['######', '#S..##', '###.##', '###G##', '######']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'turn_left()', 'turn_right()'],
-    starterCode: 'move()\nmove()\n',
+    ...NO_GRID,
+    availableCommands: ['variabel = "text" (str)', 'print()'],
+    starterCode: 'robot_name = "Okänd"\nprint(robot_name)\n',
     hints: [
-      'Roboten kan inte gå rakt fram hela vägen – det finns en vägg.',
-      'När roboten inte kan gå längre fram kan du vrida den med turn_right().',
-      'Prova:\nmove()\nmove()\nturn_right()\nmove()\nmove()'
+      'robot_name är en variabel av typen str (text) – den innehåller just nu fel namn.',
+      'Ändra värdet mellan citattecknen till NOVA.',
+      'Prova:\nrobot_name = "NOVA"\nprint(robot_name)'
     ],
-    successTip: 'turn_right() och turn_left() vrider roboten utan att flytta den.'
+    successTip: 'En variabel är som en namngiven låda: robot_name pekar på texten "NOVA".',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.robot_name === 'NOVA'
   },
   {
     id: 3,
-    title: 'Upprepning',
-    concept: 'for-loopar',
-    objective: 'Ta roboten hela vägen till den gröna rutan.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'battery',
+    title: 'Ladda batteriet',
+    concept: 'int och numeriska variabler',
+    objective: 'Ladda NOVA till 75 energienheter.',
     intro: [
-      'Den här korridoren är lång. Det går att skriva move() många gånger, men det finns ett smidigare sätt.'
+      'NOVA står kvar i laddstationen. En stor batterimätare visar bara 20%.',
+      'Uppdraget kräver minst 75 energienheter innan roboten får lämna stationen.'
     ],
-    width: 11,
-    height: 3,
-    tileGrid: parseGrid(['###########', '#S.......G#', '###########']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'for i in range(n):'],
-    starterCode: '# Hur långt är det till målet?\nmove()\n',
+    ...NO_GRID,
+    availableCommands: ['variabel = tal (int)', 'print()'],
+    starterCode: 'energy = 20\nprint(energy)\n',
     hints: [
-      'Det är åtta steg till målet – du kan skriva move() åtta gånger om du vill.',
-      'Bra! Men kan du göra samma sak med färre rader kod?',
-      'En for-loop upprepar kod åt dig: for i in range(8): move()',
-      'Prova:\nfor i in range(8):\n    move()'
+      'energy är en variabel av typen int (heltal) – just nu har den fel värde.',
+      'Ändra 20 till 75.',
+      'Prova:\nenergy = 75\nprint(energy)'
     ],
-    successTip: 'for i in range(8): move() upprepar move() åtta gånger – samma resultat, mycket kortare kod.'
+    successTip: 'int är Pythons typ för heltal. Du kan ändra en variabels värde bara genom att tilldela den ett nytt.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.energy === 75
   },
   {
     id: 4,
-    title: 'Samla energi',
-    concept: 'loopar + collect()',
-    objective: 'Samla alla energiceller och ta dig till målet.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'speed-gauge',
+    title: 'Kalibrera hastigheten',
+    concept: 'float och decimaltal',
+    objective: 'Kalibrera NOVA:s motorer till hastigheten 2.5.',
     intro: [
-      'Stationen behöver energi. Kör över energicellerna och samla in dem med collect().',
-      'collect() plockar upp det som ligger på rutan roboten står på.'
+      'NOVA rullas ut på en testbana. En holografisk hastighetsmätare visar motorernas kalibrering.',
+      'Testprotokollet kräver exakt 2.5 meter per sekund.'
     ],
-    width: 10,
-    height: 3,
-    tileGrid: parseGrid(['##########', '#SRRRRRRG#', '##########']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'for i in range(n):'],
-    starterCode: 'for i in range(6):\n    move()\n    collect()\n',
+    ...NO_GRID,
+    availableCommands: ['variabel = tal (float)', 'print()'],
+    starterCode: 'speed = 1\nprint(speed)\n',
     hints: [
-      'Varje energicell ligger på en egen ruta – flytta dit och använd collect().',
-      'En loop kan innehålla flera rader kod, till exempel både move() och collect().',
-      'Efter att du samlat alla celler behöver roboten flytta ett steg till för att nå målet.'
+      'speed behöver bli ett decimaltal, inte ett heltal.',
+      'Decimaltal i Python skrivs med punkt, till exempel 2.5.',
+      'Prova:\nspeed = 2.5\nprint(speed)'
     ],
-    successTip: 'En for-loop kan upprepa flera kommandon i taget, inte bara ett.',
-    requireAllResources: true
+    successTip: 'När ett tal innehåller decimaler används typen float, till exempel 2.5 eller 3.14.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.speed === 2.5
   },
   {
     id: 5,
-    title: 'Villkor',
-    concept: 'if-satser',
-    objective: 'Samla energicellerna som finns på vägen till målet.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'antenna',
+    title: 'Aktivera kommunikationssystemet',
+    concept: 'bool – True och False',
+    objective: 'Slå på satellitlänken.',
     intro: [
-      'Den här korridoren har energiceller utspridda lite då och då.',
-      'Med resource_ahead() kan roboten känna av om det finns något på rutan framför den innan den går dit.'
+      'En kommunikationspanel visar SATELLITLÄNK: FRÅNKOPPLAD. Antennen ligger nedfälld.',
+      'bool har bara två värden: True och False.'
     ],
-    width: 10,
-    height: 3,
-    tileGrid: parseGrid(['##########', '#SR.RR.RG#', '##########']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'resource_ahead()', 'if:'],
-    starterCode: 'for i in range(7):\n    if resource_ahead():\n        move()\n        collect()\n    else:\n        move()\n',
+    ...NO_GRID,
+    availableCommands: ['variabel = True/False (bool)', 'print()'],
+    starterCode: 'communication_online = False\nprint(communication_online)\n',
     hints: [
-      'Alla rutor har inte en energicell på sig – ibland är det bara tomt.',
-      'resource_ahead() svarar True eller False beroende på om det finns något på rutan framför roboten.',
-      'Använd if resource_ahead(): innan du väljer att samla in, annars bara flytta vidare.'
+      'communication_online är en bool – ett sanningsvärde som bara kan vara True eller False.',
+      'Just nu är länken avstängd (False). Slå på den istället.',
+      'Prova:\ncommunication_online = True\nprint(communication_online)'
     ],
-    successTip: 'if-satser låter koden fatta beslut baserat på vad som händer i spelvärlden.',
-    requireAllResources: true
+    successTip: 'bool representerar bara två tillstånd: True (på) och False (av).',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.communication_online === true
   },
   {
     id: 6,
-    title: 'Okänd sträcka',
-    concept: 'while-loopar',
-    objective: 'Ta roboten till slutet av korridoren.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'cargo',
+    title: 'Fyll energilagret',
+    concept: 'variabler + addition',
+    objective: 'Registrera leveransen korrekt: 4 befintliga celler och 3 nya.',
     intro: [
-      'Den här korridoren är lång, och den här gången struntar vi i att räkna rutorna i förväg.',
-      'can_move() svarar True om roboten kan gå ett steg framåt, annars False.'
+      'Energilagret innehåller 4 energiceller. En transportdrönare levererar 3 till.',
+      'Koden registrerar just nu fel antal nya celler – lagersystemet räknar fel.'
     ],
-    width: 11,
-    height: 3,
-    tileGrid: parseGrid(['###########', '#S.......G#', '###########']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'can_move()', 'while:'],
-    starterCode: 'while can_move():\n    move()\n',
+    ...NO_GRID,
+    availableCommands: ['variabler', '+'],
+    starterCode: 'stored_cells = 4\nnew_cells = 2\n\ntotal_cells = stored_cells + new_cells\n\nprint(total_cells)\n',
     hints: [
-      'Du skulle kunna räkna rutorna själv, men det finns ett smidigare sätt.',
-      'while can_move(): upprepar kod ända tills roboten inte kan gå längre fram.',
-      'Prova:\nwhile can_move():\n    move()'
+      'Leveransen innehöll 3 nya celler, inte 2 – new_cells har fel värde.',
+      'stored_cells ska vara oförändrad (4); det är bara new_cells som behöver rättas.',
+      'Prova:\nstored_cells = 4\nnew_cells = 3\n\ntotal_cells = stored_cells + new_cells\n\nprint(total_cells)'
     ],
-    successTip: 'while-loopar upprepar kod så länge ett villkor är sant – perfekt när du inte vet hur många gånger i förväg.'
+    successTip: 'Du kan lagra resultatet av en uträkning i en ny variabel: total_cells = stored_cells + new_cells.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.stored_cells === 4 && ctx.variables.new_cells === 3 && ctx.variables.total_cells === 7
   },
   {
     id: 7,
-    title: 'Funktioner',
-    concept: 'def – egna funktioner',
-    objective: 'Skörda alla tre rader med energiceller och nå målet.',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'fuel-gauge',
+    title: 'Beräkna bränslet efter resan',
+    concept: 'subtraktion',
+    objective: 'Räkna ut hur mycket bränsle som är kvar efter resan.',
     intro: [
-      'Stationens sista uppdrag har tre identiska rader med energiceller.',
-      'Med def kan du bygga ett eget kommando som du sedan kan använda flera gånger.'
+      'En expeditionsfarkost återvänder. Den hade 90 liter bränsle och förbrukade 30 liter under resan.',
+      'Beräkningen i kontrollsystemet ger ett omöjligt resultat – något är fel i logiken, inte i syntaxen.'
     ],
-    width: 6,
-    height: 9,
-    tileGrid: parseGrid([
-      '######',
-      '#SRRR#',
-      '#....#',
-      '#RRR.#',
-      '#....#',
-      '#.RRR#',
-      '#....#',
-      '#...G#',
-      '######'
-    ]),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'turn_left()', 'turn_right()', 'def name():'],
-    starterCode:
-      'def harvest_line():\n    for i in range(3):\n        move()\n        collect()\n\nharvest_line()\n',
+    ...NO_GRID,
+    availableCommands: ['variabler', '-'],
+    starterCode: 'fuel_before = 90\nfuel_used = 30\n\nfuel_left = fuel_before + fuel_used\n\nprint(fuel_left)\n',
     hints: [
-      'harvest_line() finns redan definierad åt dig – den skördar tre rutor framåt.',
-      'Efter varje rad behöver roboten vända sig och flytta ner till nästa rad innan den skördar igen.',
-      'Du kan anropa harvest_line() flera gånger – den fungerar oavsett vilket håll roboten tittar åt.',
-      'Fullständig lösning:\nharvest_line()\nturn_right()\nmove()\nmove()\nturn_right()\nharvest_line()\nturn_left()\nmove()\nmove()\nturn_left()\nharvest_line()\nturn_right()\nmove()\nmove()'
+      'Kör koden. Bränslemätaren skulle behöva visa mer bränsle än farkosten någonsin hade – det är fel.',
+      'Förbrukat bränsle ska dras bort, inte läggas till.',
+      'Prova:\nfuel_left = fuel_before - fuel_used'
     ],
-    successTip: 'Funktioner låter dig paketera flera kommandon under ett eget namn och återanvända dem.',
-    requireAllResources: true
+    successTip: 'Samma variabler kan kombineras med olika räknesätt beroende på vad de faktiskt betyder – här behövdes - istället för +.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.fuel_left === 60
+  },
+  {
+    id: 8,
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'message-relay',
+    title: 'Bygg robotens statusmeddelande',
+    concept: 'str(), text + tal',
+    objective: 'Skicka ett statusmeddelande utan att kraschen upprepas.',
+    intro: [
+      'NOVA:s kommunikationspanel ska skicka en statusrapport till kontrollcentralen.',
+      'Systemet kraschar just nu när det försöker kombinera text och ett tal direkt.'
+    ],
+    ...NO_GRID,
+    availableCommands: ['str()', '+'],
+    starterCode: 'robot_name = "NOVA"\nenergy = 75\n\nmessage = robot_name + " har " + energy + "% energi"\n\nprint(message)\n',
+    hints: [
+      'Kör koden och läs felmeddelandet noga – vilka två typer krockar?',
+      'energy är ett tal (int), inte text (str). Python kan inte klistra ihop text och tal med +.',
+      'Gör om talet till text med str(energy) innan du kombinerar det med resten av meddelandet.',
+      'Prova:\nmessage = robot_name + " har " + str(energy) + "% energi"'
+    ],
+    successTip: 'str() gör om nästan vilket värde som helst till text, så att det går att kombinera med + och andra strängar.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.message === 'NOVA har 75% energi'
+  },
+  {
+    id: 9,
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'operator-card',
+    title: 'Registrera operatören',
+    concept: 'input()',
+    objective: 'Fråga operatören vad hen heter istället för att gissa.',
+    intro: [
+      'Kontrollcentralen kräver nu att en mänsklig operatör loggar in. Skärmen visar: OPERATÖR SAKNAS.',
+      'input() låter programmet fråga spelaren om något, och vänta på ett svar.'
+    ],
+    ...NO_GRID,
+    availableCommands: ['input()', 'variabler', 'print()'],
+    starterCode: 'name = "Okänd"\n\nprint("Välkommen " + name)\n',
+    hints: [
+      'Systemet ska inte ha ett förbestämt namn – be istället operatören skriva in det.',
+      'input("Vad heter du? ") pausar programmet, visar frågan, och returnerar det operatören skriver.',
+      'Prova:\nname = input("Vad heter du? ")\n\nprint("Välkommen " + name)'
+    ],
+    successTip: 'input() pausar programmet och väntar på ett svar från spelaren – svaret kommer alltid som en str.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => ctx.usedInput && typeof ctx.variables.name === 'string' && ctx.variables.name.trim().length > 0
+  },
+  {
+    id: 10,
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'charging-station',
+    title: 'Laddstationen',
+    concept: 'input() + typkonvertering + addition',
+    objective: 'Reparera laddstationen så att den kan beräkna NOVA:s nya energinivå.',
+    intro: [
+      'NOVA står vid en laddstation med 35% energi kvar. Stationen frågar hur mycket som ska laddas.',
+      'Det här uppdraget kräver allt du lärt dig hittills i Kontrollcentralen.'
+    ],
+    ...NO_GRID,
+    availableCommands: ['input()', 'int()', '+'],
+    starterCode:
+      'energy = 35\n\ncharge = input("Hur mycket energi vill du ladda? ")\n\nnew_energy = energy + charge\n\nprint("Ny energinivå:", new_energy)\n',
+    hints: [
+      'Kom ihåg att input() alltid ger dig text, oavsett vad operatören skriver.',
+      'Du behöver ett tal för att kunna addera det till energy.',
+      'Funktionen int() kan göra om till exempel "25" till talet 25.',
+      'Prova:\nenergy = 35\ncharge = int(input("Hur mycket energi vill du ladda? "))\nnew_energy = energy + charge\nprint("Ny energinivå:", new_energy)'
+    ],
+    successTip: 'Genom att kombinera input(), int() och vanlig addition kan du bygga ett litet program som faktiskt reagerar på vad operatören skriver.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => {
+      if (!ctx.usedInput) return false
+      const energy = asNumber(ctx.variables.energy)
+      const newEnergy = asNumber(ctx.variables.new_energy)
+      const charge = ctx.variables.charge
+      if (energy === null || newEnergy === null) return false
+      const chargeAsInt = parseInt(String(charge ?? ''), 10)
+      if (Number.isNaN(chargeAsInt)) return false
+      return newEnergy === energy + chargeAsInt
+    }
   }
 ]
 

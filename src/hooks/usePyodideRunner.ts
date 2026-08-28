@@ -9,6 +9,7 @@ interface RunArgs {
   code: string
   tileGrid: TileKind[][]
   playerStart: { x: number; y: number; direction: Direction }
+  inputs?: string[]
 }
 
 export function usePyodideRunner() {
@@ -99,6 +100,7 @@ export function usePyodideRunner() {
           id,
           type: 'run',
           code: args.code,
+          inputs: args.inputs,
           level: { tileGrid: args.tileGrid, playerStart: args.playerStart }
         }
         worker.postMessage(req)

@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { PREAMBLE_LINE_COUNT, buildSource } from './pyBootstrap'
+import { SNAPSHOT_SOURCE, buildSource } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
@@ -11,7 +11,7 @@ import {
   queryCanMove,
   queryResourceAhead
 } from './simulate'
-import type { SimWorldState, StepType, TileKind, TraceStep, WorkerRequest, WorkerResponse } from '../types'
+import type { SimWorldState, SnapshotValue, StepType, TileKind, TraceStep, WorkerRequest, WorkerResponse } from '../types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
 
@@ -19,6 +19,7 @@ const PYODIDE_VERSION = 'v0.26.4'
 const INDEX_URL = `https://cdn.jsdelivr.net/pyodide/${PYODIDE_VERSION}/full/`
 
 const MAX_STEPS = 400
+const INPUT_NEEDED_PREFIX = '__INPUT_NEEDED__:'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pyodide: any = null
@@ -38,10 +39,22 @@ async function init() {
   }
 }
 
-function runUserCode(code: string, grid: TileKind[][], playerStart: { x: number; y: number; direction: import('../types').Direction }) {
+interface RunOutcome {
+  steps: TraceStep[]
+  finalVariables?: Record<string, SnapshotValue>
+  awaitingInput?: { prompt: string }
+}
+
+function runUserCode(
+  code: string,
+  grid: TileKind[][],
+  playerStart: { x: number; y: number; direction: import('../types').Direction },
+  inputs: string[]
+): RunOutcome {
   let state: SimWorldState = createInitialState(grid, playerStart)
   const steps: TraceStep[] = []
   let stepCount = 0
+  let inputIndex = 0
 
   function guard() {
     stepCount += 1
@@ -50,60 +63,125 @@ function runUserCode(code: string, grid: TileKind[][], playerStart: { x: number;
     }
   }
 
-  function pushStep(type: StepType, rawLine: number, result?: boolean) {
-    const line = Math.max(1, rawLine - PREAMBLE_LINE_COUNT)
+  function pushStep(
+    type: StepType,
+    rawLine: number,
+    result?: boolean,
+    output?: string,
+    callInfo?: TraceStep['callInfo'],
+    returnInfo?: TraceStep['returnInfo'],
+    variables?: TraceStep['variables']
+  ) {
+    // The player's code runs as its own compiled unit (see buildSource), so
+    // _getframe(1).f_lineno is already the player's own 1-indexed line number.
+    const line = Math.max(1, rawLine)
     steps.push({
       line,
       type,
       state,
       result,
-      note: state.message
+      note: state.message,
+      output,
+      callInfo,
+      returnInfo,
+      variables
     })
   }
 
-  pyodide.globals.set('__step_move', (rawLine: number) => {
-    guard()
-    state = applyMove(state, grid)
-    pushStep('move', rawLine)
-  })
-  pyodide.globals.set('__step_turn_left', (rawLine: number) => {
-    guard()
-    state = applyTurnLeft(state)
-    pushStep('turn_left', rawLine)
-  })
-  pyodide.globals.set('__step_turn_right', (rawLine: number) => {
-    guard()
-    state = applyTurnRight(state)
-    pushStep('turn_right', rawLine)
-  })
-  pyodide.globals.set('__step_collect', (rawLine: number) => {
-    guard()
-    state = applyCollect(state)
-    pushStep('collect', rawLine)
-  })
-  pyodide.globals.set('__step_can_move', (rawLine: number) => {
-    guard()
-    const result = queryCanMove(state, grid)
-    pushStep('can_move', rawLine, result)
-    return result
-  })
-  pyodide.globals.set('__step_resource_ahead', (rawLine: number) => {
-    guard()
-    const result = queryResourceAhead(state, grid)
-    pushStep('resource_ahead', rawLine, result)
-    return result
-  })
-  pyodide.globals.set('__step_at_goal', (rawLine: number) => {
-    guard()
-    const result = queryAtGoal(state, grid)
-    pushStep('at_goal', rawLine, result)
-    return result
-  })
+  // Run each execution in its own fresh globals namespace so variables never
+  // leak between runs or between levels (the worker/pyodide instance is reused).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globals: any = pyodide.toPy({})
 
-  const source = buildSource(code)
-  pyodide.runPython(source)
+  try {
+    globals.set('__step_move', (rawLine: number) => {
+      guard()
+      state = applyMove(state, grid)
+      pushStep('move', rawLine)
+    })
+    globals.set('__step_turn_left', (rawLine: number) => {
+      guard()
+      state = applyTurnLeft(state)
+      pushStep('turn_left', rawLine)
+    })
+    globals.set('__step_turn_right', (rawLine: number) => {
+      guard()
+      state = applyTurnRight(state)
+      pushStep('turn_right', rawLine)
+    })
+    globals.set('__step_collect', (rawLine: number) => {
+      guard()
+      state = applyCollect(state)
+      pushStep('collect', rawLine)
+    })
+    globals.set('__step_can_move', (rawLine: number) => {
+      guard()
+      const result = queryCanMove(state, grid)
+      pushStep('can_move', rawLine, result)
+      return result
+    })
+    globals.set('__step_resource_ahead', (rawLine: number) => {
+      guard()
+      const result = queryResourceAhead(state, grid)
+      pushStep('resource_ahead', rawLine, result)
+      return result
+    })
+    globals.set('__step_at_goal', (rawLine: number) => {
+      guard()
+      const result = queryAtGoal(state, grid)
+      pushStep('at_goal', rawLine, result)
+      return result
+    })
+    globals.set('__step_print', (rawLine: number, text: string) => {
+      guard()
+      pushStep('print', rawLine, undefined, text)
+    })
+    // input() can't truly block here (no SharedArrayBuffer/COOP-COEP setup), so
+    // the UI re-runs the whole script from scratch each time with one more
+    // answer appended to `inputs`; once the queue runs out we raise a sentinel
+    // that the caller turns into an "awaiting input" pause instead of an error.
+    globals.set('__step_input', (rawLine: number, prompt: string) => {
+      guard()
+      if (inputIndex < inputs.length) {
+        const answer = inputs[inputIndex]
+        inputIndex += 1
+        pushStep('input', rawLine, undefined, `${prompt}${answer}\n`)
+        return answer
+      }
+      throw new Error(INPUT_NEEDED_PREFIX + prompt)
+    })
+    globals.set('__step_call', (rawLine: number, name: string, argsJson: string) => {
+      guard()
+      pushStep('call', rawLine, undefined, undefined, { name, args: JSON.parse(argsJson) })
+    })
+    globals.set('__step_return', (rawLine: number, name: string, valueJson: string) => {
+      guard()
+      pushStep('return', rawLine, undefined, undefined, undefined, { name, value: JSON.parse(valueJson) })
+    })
+    globals.set('__step_state', (rawLine: number, variablesJson: string) => {
+      guard()
+      pushStep('state', rawLine, undefined, undefined, undefined, undefined, JSON.parse(variablesJson))
+    })
 
-  return steps
+    const source = buildSource(code)
+    try {
+      pyodide.runPython(source, { globals })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      const idx = message.indexOf(INPUT_NEEDED_PREFIX)
+      if (idx !== -1) {
+        const prompt = message.slice(idx + INPUT_NEEDED_PREFIX.length).split('\n')[0]
+        return { steps, awaitingInput: { prompt } }
+      }
+      throw err
+    }
+
+    const snapshotJson = pyodide.runPython(SNAPSHOT_SOURCE, { globals })
+    const finalVariables = JSON.parse(snapshotJson) as Record<string, SnapshotValue>
+    return { steps, finalVariables }
+  } finally {
+    globals.destroy()
+  }
 }
 
 async function handleRun(req: WorkerRequest) {
@@ -112,11 +190,16 @@ async function handleRun(req: WorkerRequest) {
     return
   }
   try {
-    const steps = runUserCode(req.code, req.level.tileGrid, req.level.playerStart)
-    post({ id: req.id, type: 'result', result: { ok: true, steps } })
+    const { steps, finalVariables, awaitingInput } = runUserCode(
+      req.code,
+      req.level.tileGrid,
+      req.level.playerStart,
+      req.inputs ?? []
+    )
+    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    const friendly = translateError(message, PREAMBLE_LINE_COUNT)
+    const friendly = translateError(message)
     post({
       id: req.id,
       type: 'result',
