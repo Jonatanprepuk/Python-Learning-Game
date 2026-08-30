@@ -74,11 +74,21 @@ export function GameWorld({ level, worldState, lastStep }: GameWorldProps) {
           row.map((kind, x) => {
             const isCollectedResource = kind === 'resource' && !collectedSet.has(`${x},${y}`)
             const displayKind = isCollectedResource ? 'empty' : kind
+            const doorOpen = displayKind === 'door' && worldState.doorsOpen
             return (
-              <div key={`${x}-${y}`} className={`tile tile--${displayKind}`}>
+              <div
+                key={`${x}-${y}`}
+                className={`tile tile--${displayKind}${doorOpen ? ' tile--door-open' : ''}`}
+              >
                 {displayKind === 'resource' && <span className="tile__resource" />}
                 {displayKind === 'goal' && <span className="tile__goal" />}
                 {displayKind === 'wall' && <span className="tile__wall" />}
+                {displayKind === 'door' && (
+                  <>
+                    <span className="tile__door tile__door--left" />
+                    <span className="tile__door tile__door--right" />
+                  </>
+                )}
               </div>
             )
           })

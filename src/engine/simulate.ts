@@ -44,7 +44,8 @@ export function createInitialState(
     collected: 0,
     totalResources: resources.length,
     bumped: false,
-    message: null
+    message: null,
+    doorsOpen: false
   }
 }
 
@@ -55,8 +56,19 @@ function clone(state: SimWorldState): SimWorldState {
     collected: state.collected,
     totalResources: state.totalResources,
     bumped: false,
-    message: null
+    message: null,
+    doorsOpen: state.doorsOpen
   }
+}
+
+/**
+ * Returns a new state with doorsOpen updated (or the same state if unchanged),
+ * so the UI can visually flip a door open the instant a variable becomes
+ * correct — not only the next time the robot tries to move through it.
+ */
+export function withDoorsOpen(state: SimWorldState, doorsOpen: boolean): SimWorldState {
+  if (state.doorsOpen === doorsOpen) return state
+  return { ...clone(state), doorsOpen }
 }
 
 export function aheadPosition(state: SimWorldState): GridPos {
@@ -64,16 +76,22 @@ export function aheadPosition(state: SimWorldState): GridPos {
   return { x: state.robot.x + d.x, y: state.robot.y + d.y }
 }
 
-export function isBlocked(grid: TileKind[][], pos: GridPos): boolean {
-  return tileAt(grid, pos.x, pos.y) === 'wall'
+export function isBlocked(grid: TileKind[][], pos: GridPos, doorsOpen: boolean): boolean {
+  const tile = tileAt(grid, pos.x, pos.y)
+  if (tile === 'wall') return true
+  if (tile === 'door') return !doorsOpen
+  return false
 }
 
-export function applyMove(state: SimWorldState, grid: TileKind[][]): SimWorldState {
+export function applyMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): SimWorldState {
   const next = clone(state)
   const target = aheadPosition(state)
-  if (isBlocked(grid, target)) {
+  if (isBlocked(grid, target, doorsOpen)) {
     next.bumped = true
-    next.message = 'Roboten kan inte flytta dit – något är i vägen.'
+    next.message =
+      tileAt(grid, target.x, target.y) === 'door'
+        ? 'Dörren är låst – något stämmer inte än.'
+        : 'Roboten kan inte flytta dit – något är i vägen.'
     return next
   }
   next.robot.x = target.x
@@ -105,13 +123,13 @@ export function applyCollect(state: SimWorldState): SimWorldState {
   return next
 }
 
-export function queryCanMove(state: SimWorldState, grid: TileKind[][]): boolean {
-  return !isBlocked(grid, aheadPosition(state))
+export function queryCanMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
+  return !isBlocked(grid, aheadPosition(state), doorsOpen)
 }
 
-export function queryResourceAhead(state: SimWorldState, grid: TileKind[][]): boolean {
+export function queryResourceAhead(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
   const target = aheadPosition(state)
-  if (isBlocked(grid, target)) return false
+  if (isBlocked(grid, target, doorsOpen)) return false
   return state.resources.some((r) => r.x === target.x && r.y === target.y)
 }
 

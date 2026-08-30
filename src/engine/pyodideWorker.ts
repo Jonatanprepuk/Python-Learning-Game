@@ -9,9 +9,19 @@ import {
   createInitialState,
   queryAtGoal,
   queryCanMove,
-  queryResourceAhead
+  queryResourceAhead,
+  withDoorsOpen
 } from './simulate'
-import type { SimWorldState, SnapshotValue, StepType, TileKind, TraceStep, WorkerRequest, WorkerResponse } from '../types'
+import type {
+  DoorCondition,
+  SimWorldState,
+  SnapshotValue,
+  StepType,
+  TileKind,
+  TraceStep,
+  WorkerRequest,
+  WorkerResponse
+} from '../types'
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope
 
@@ -45,16 +55,39 @@ interface RunOutcome {
   awaitingInput?: { prompt: string }
 }
 
+function evaluateDoorCondition(condition: DoorCondition | undefined, variables: Record<string, SnapshotValue>): boolean {
+  if (!condition) return false
+  const v = variables[condition.variable]
+  if (typeof v !== 'number') return false
+  switch (condition.op) {
+    case '==':
+      return v === condition.value
+    case '>=':
+      return v >= condition.value
+    case '<=':
+      return v <= condition.value
+    case '>':
+      return v > condition.value
+    case '<':
+      return v < condition.value
+  }
+}
+
 function runUserCode(
   code: string,
   grid: TileKind[][],
   playerStart: { x: number; y: number; direction: import('../types').Direction },
-  inputs: string[]
+  inputs: string[],
+  doorCondition: DoorCondition | undefined
 ): RunOutcome {
   let state: SimWorldState = createInitialState(grid, playerStart)
   const steps: TraceStep[] = []
   let stepCount = 0
   let inputIndex = 0
+  // Updated on every 'state' step so door tiles react to the player's own
+  // variables as they're set, not just at the moment the robot tries to move.
+  let liveVariables: Record<string, SnapshotValue> = {}
+  const doorsOpenNow = () => evaluateDoorCondition(doorCondition, liveVariables)
 
   function guard() {
     stepCount += 1
@@ -96,7 +129,7 @@ function runUserCode(
   try {
     globals.set('__step_move', (rawLine: number) => {
       guard()
-      state = applyMove(state, grid)
+      state = applyMove(state, grid, doorsOpenNow())
       pushStep('move', rawLine)
     })
     globals.set('__step_turn_left', (rawLine: number) => {
@@ -116,13 +149,13 @@ function runUserCode(
     })
     globals.set('__step_can_move', (rawLine: number) => {
       guard()
-      const result = queryCanMove(state, grid)
+      const result = queryCanMove(state, grid, doorsOpenNow())
       pushStep('can_move', rawLine, result)
       return result
     })
     globals.set('__step_resource_ahead', (rawLine: number) => {
       guard()
-      const result = queryResourceAhead(state, grid)
+      const result = queryResourceAhead(state, grid, doorsOpenNow())
       pushStep('resource_ahead', rawLine, result)
       return result
     })
@@ -160,7 +193,12 @@ function runUserCode(
     })
     globals.set('__step_state', (rawLine: number, variablesJson: string) => {
       guard()
-      pushStep('state', rawLine, undefined, undefined, undefined, undefined, JSON.parse(variablesJson))
+      liveVariables = JSON.parse(variablesJson) as Record<string, SnapshotValue>
+      // Flip the door open the instant the variable becomes correct, so the
+      // player sees it react while they're still writing/running the code —
+      // not only the next time move() happens to be called.
+      state = withDoorsOpen(state, doorsOpenNow())
+      pushStep('state', rawLine, undefined, undefined, undefined, undefined, liveVariables)
     })
 
     const source = buildSource(code)
@@ -194,7 +232,8 @@ async function handleRun(req: WorkerRequest) {
       req.code,
       req.level.tileGrid,
       req.level.playerStart,
-      req.inputs ?? []
+      req.inputs ?? [],
+      req.level.doorCondition
     )
     post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput } })
   } catch (err) {

@@ -86,15 +86,18 @@ export function useLevelSession(level: LevelDefinition) {
       const finalState = steps.length ? steps[steps.length - 1].state : createInitialState(level.tileGrid, level.playerStart)
       const variables = finalVars ?? {}
       let won: boolean
-      if (level.type === 'robot') {
+      if (level.successCheck) {
+        // Robot levels with a successCheck validate BOTH the code's result and
+        // that the robot actually reached the goal (e.g. a door-unlock room).
+        won =
+          level.successCheck({
+            variables,
+            consoleLines: consoleRef.current,
+            ranWithoutError: true,
+            usedInput: inputsRef.current.length > 0
+          }) && (level.type !== 'robot' || checkWin(finalState, level.tileGrid, level.requireAllResources))
+      } else if (level.type === 'robot') {
         won = checkWin(finalState, level.tileGrid, level.requireAllResources)
-      } else if (level.successCheck) {
-        won = level.successCheck({
-          variables,
-          consoleLines: consoleRef.current,
-          ranWithoutError: true,
-          usedInput: inputsRef.current.length > 0
-        })
       } else {
         won = true
       }
@@ -160,7 +163,8 @@ export function useLevelSession(level: LevelDefinition) {
         code,
         tileGrid: level.tileGrid,
         playerStart: level.playerStart,
-        inputs
+        inputs,
+        doorCondition: level.doorCondition
       })
 
       if (runToken.current !== token) return

@@ -1,6 +1,20 @@
-import type { LevelDefinition, SnapshotValue, TileKind } from '../types'
+import type { LevelDefinition, TileKind } from '../types'
+import { pickNumeric } from './valueBinding'
 
-// Non-"robot" levels don't need a grid, but LevelDefinition keeps
+// Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
+// doorCondition holds), G = goal, S = start (rendered as empty).
+function parseGrid(rows: string[]): TileKind[][] {
+  const map: Record<string, TileKind> = {
+    '#': 'wall',
+    '.': 'empty',
+    D: 'door',
+    G: 'goal',
+    S: 'empty'
+  }
+  return rows.map((row) => row.split('').map((ch) => map[ch] ?? 'empty'))
+}
+
+// Scene-type levels don't need a grid, but LevelDefinition keeps
 // tileGrid/playerStart required so the shared session/world-state plumbing
 // doesn't need to branch on level type.
 const NO_GRID: Pick<LevelDefinition, 'width' | 'height' | 'tileGrid' | 'playerStart'> = {
@@ -10,273 +24,248 @@ const NO_GRID: Pick<LevelDefinition, 'width' | 'height' | 'tileGrid' | 'playerSt
   playerStart: { x: 0, y: 0, direction: 'right' }
 }
 
-function asNumber(v: SnapshotValue | undefined): number | null {
-  return typeof v === 'number' ? v : null
+export interface WorldMeta {
+  id: string
+  title: string
+  tagline: string
+  status: 'available' | 'soon'
 }
 
-export const WORLDS: { id: string; title: string }[] = [{ id: 'kontrollcentralen', title: 'Kontrollcentralen' }]
+export const WORLDS: WorldMeta[] = [
+  {
+    id: 'kontrollcentralen',
+    title: 'Kontrollcentralen',
+    tagline: 'Variabler, tal och de fyra räknesätten.',
+    status: 'available'
+  },
+  {
+    id: 'sakerhetssystemet',
+    title: 'Säkerhetssystemet',
+    tagline: 'Logik och villkor.',
+    status: 'soon'
+  },
+  {
+    id: 'produktionshallen',
+    title: 'Produktionshallen',
+    tagline: 'Loopar.',
+    status: 'soon'
+  },
+  {
+    id: 'datacentret',
+    title: 'Datacentret',
+    tagline: 'Listor och dictionaries.',
+    status: 'soon'
+  },
+  {
+    id: 'robotlabbet',
+    title: 'Robotlabbet',
+    tagline: 'Funktioner.',
+    status: 'soon'
+  },
+  {
+    id: 'expeditionen',
+    title: 'Expeditionen',
+    tagline: 'Kombinerade uppdrag.',
+    status: 'soon'
+  },
+  {
+    id: 'autonoma-system',
+    title: 'Autonoma system',
+    tagline: 'Klasser.',
+    status: 'soon'
+  }
+]
 
 export const LEVELS: LevelDefinition[] = [
   {
     id: 1,
     world: 'kontrollcentralen',
     type: 'scene',
-    visualScene: 'screen',
-    title: 'Starta kontrollcentralen',
+    visualScene: 'robot-wake',
+    title: 'Ge roboten ett namn',
     concept: 'print() och strängar',
-    objective: 'Få den stora skärmen att visa SYSTEM ONLINE.',
+    objective: 'Väck roboten genom att ge den ett namn och hälsa på den.',
     intro: [
-      'Du har kommit fram till en övergiven teknisk anläggning. Kontrollrummet är mörkt och tyst.',
-      'Den stora skärmen väntar på sitt startmeddelande.'
+      'Du har hittat en avstängd robot i en övergiven anläggning. Innan resan börjar behöver den ett namn.',
+      'En variabel är ett namn som pekar på ett värde. print() skriver ut det i terminalen.'
     ],
     ...NO_GRID,
-    availableCommands: ['print()', '"text" (str)'],
-    starterCode: 'print("SYSTEM OFFLINE")\n',
+    availableCommands: ['variabel = "text" (str)', 'print()'],
+    starterCode: '# Ge roboten ett namn och hälsa på den.\n',
     hints: [
-      'Texten som ska visas står mellan citattecken: " ".',
-      'Ändra texten SYSTEM OFFLINE till SYSTEM ONLINE.',
-      'Prova:\nprint("SYSTEM ONLINE")'
+      'Skapa en variabel, till exempel name = "NOVA".',
+      'Använd print() för att skriva ut hälsningen.',
+      'Prova:\nname = "NOVA"\nprint(name)'
     ],
-    successTip: 'print() skriver ut exakt den text du ger den, tecken för tecken.',
+    successTip: 'En variabel är som en namngiven låda: name pekar nu på texten du valde.',
     showConsole: true,
-    successCheck: (ctx) => ctx.consoleLines.some((line) => line.trim() === 'SYSTEM ONLINE')
+    successCheck: (ctx) => ctx.consoleLines.some((line) => line.trim().length > 0)
   },
   {
     id: 2,
     world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'nametag',
-    title: 'Ge roboten ett namn',
-    concept: 'variabler och str',
-    objective: 'Registrera robotens anropsnamn som NOVA.',
+    type: 'robot',
+    title: 'Rum 1 — Energilåset',
+    concept: 'addition (+)',
+    objective: 'Räkna ut energin och ta dig igenom den låsta dörren.',
     intro: [
-      'I ett hörn av kontrollrummet vaknar en robot i sin laddstation. Namnskylten på bröstet är tom: ???',
-      'En variabel är ett namn som pekar på ett värde – just nu pekar robot_name på fel text.'
+      'Det första rummet blockeras av en energidörr. Den kräver exakt 50 energienheter för att låsa upp.',
+      'Två celler i väggen visar 20 och 30. Dörren reagerar direkt när din uträkning stämmer — innan roboten ens rört sig.'
     ],
-    ...NO_GRID,
-    availableCommands: ['variabel = "text" (str)', 'print()'],
-    starterCode: 'robot_name = "Okänd"\nprint(robot_name)\n',
+    width: 8,
+    height: 3,
+    tileGrid: parseGrid(['########', '#S..D.G#', '########']),
+    playerStart: { x: 1, y: 1, direction: 'right' },
+    availableCommands: ['+', 'move()'],
+    starterCode:
+      'cell_a = 20\ncell_b = 30\n\n# Räkna ut hur mycket energi de två cellerna ger tillsammans.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
     hints: [
-      'robot_name är en variabel av typen str (text) – den innehåller just nu fel namn.',
-      'Ändra värdet mellan citattecknen till NOVA.',
-      'Prova:\nrobot_name = "NOVA"\nprint(robot_name)'
+      'Roboten går redan rätt väg — dörren släpper bara igenom om energy stämmer.',
+      '+ adderar cell_a och cell_b.',
+      'Prova:\nenergy = cell_a + cell_b'
     ],
-    successTip: 'En variabel är som en namngiven låda: robot_name pekar på texten "NOVA".',
+    successTip: 'Dörren lyssnar på variabeln energy hela tiden den körs — du ser den öppnas i samma ögonblick värdet blir rätt.',
     showConsole: true,
     showVariables: true,
-    successCheck: (ctx) => ctx.variables.robot_name === 'NOVA'
+    doorCondition: { variable: 'energy', op: '==', value: 50 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['energy']) === 50
   },
   {
     id: 3,
     world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'battery',
-    title: 'Ladda batteriet',
-    concept: 'int och numeriska variabler',
-    objective: 'Ladda NOVA till 75 energienheter.',
+    type: 'robot',
+    title: 'Rum 2 — Säkerhetsdörren',
+    concept: 'subtraktion (-)',
+    objective: 'Räkna ut hur mycket energi som blir kvar, och lås upp dörren.',
     intro: [
-      'NOVA står kvar i laddstationen. En stor batterimätare visar bara 20%.',
-      'Uppdraget kräver minst 75 energienheter innan roboten får lämna stationen.'
+      'Nästa dörr kräver exakt 65 energienheter kvar. Systemet har 100, och dörren kostar 35 att öppna.',
+      '- drar bort ett värde från ett annat, precis som i matematiken.'
     ],
-    ...NO_GRID,
-    availableCommands: ['variabel = tal (int)', 'print()'],
-    starterCode: 'energy = 20\nprint(energy)\n',
+    width: 8,
+    height: 3,
+    tileGrid: parseGrid(['########', '#S..D.G#', '########']),
+    playerStart: { x: 1, y: 1, direction: 'right' },
+    availableCommands: ['-', 'move()'],
+    starterCode:
+      'total_energy = 100\ndoor_cost = 35\n\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
     hints: [
-      'energy är en variabel av typen int (heltal) – just nu har den fel värde.',
-      'Ändra 20 till 75.',
-      'Prova:\nenergy = 75\nprint(energy)'
+      'total_energy är vad systemet har, door_cost är vad dörren kostar.',
+      '- drar bort ett värde från ett annat: total_energy - door_cost.',
+      'Prova:\nremaining_energy = total_energy - door_cost'
     ],
-    successTip: 'int är Pythons typ för heltal. Du kan ändra en variabels värde bara genom att tilldela den ett nytt.',
+    successTip: 'Samma variabler kan kombineras med olika räknesätt beroende på vad de betyder i sammanhanget.',
     showConsole: true,
     showVariables: true,
-    successCheck: (ctx) => ctx.variables.energy === 75
+    doorCondition: { variable: 'remaining_energy', op: '==', value: 65 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy']) === 65
   },
   {
     id: 4,
     world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'speed-gauge',
-    title: 'Kalibrera hastigheten',
-    concept: 'float och decimaltal',
-    objective: 'Kalibrera NOVA:s motorer till hastigheten 2.5.',
+    type: 'robot',
+    title: 'Rum 3 — Bron',
+    concept: 'multiplikation (*)',
+    objective: 'Räkna ut hur lång bron blir så att byggsystemet kan lägga ut den.',
     intro: [
-      'NOVA rullas ut på en testbana. En holografisk hastighetsmätare visar motorernas kalibrering.',
-      'Testprotokollet kräver exakt 2.5 meter per sekund.'
+      'Golvet framför dig saknas — en klyfta delar rummet i två. Byggsystemet lägger ut brodelar automatiskt så fort det vet totallängden.',
+      'Varje del är 2 meter, och du behöver 4 delar. * multiplicerar två tal.'
     ],
-    ...NO_GRID,
-    availableCommands: ['variabel = tal (float)', 'print()'],
-    starterCode: 'speed = 1\nprint(speed)\n',
+    width: 8,
+    height: 3,
+    tileGrid: parseGrid(['########', '#S.DD.G#', '########']),
+    playerStart: { x: 1, y: 1, direction: 'right' },
+    availableCommands: ['*', 'move()'],
+    starterCode:
+      'part_length = 2\nparts_needed = 4\n\n# Räkna ut hur lång bron blir totalt.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
     hints: [
-      'speed behöver bli ett decimaltal, inte ett heltal.',
-      'Decimaltal i Python skrivs med punkt, till exempel 2.5.',
-      'Prova:\nspeed = 2.5\nprint(speed)'
+      'part_length är längden på en del, parts_needed är hur många som behövs.',
+      '* multiplicerar: part_length * parts_needed.',
+      'Prova:\nbridge_length = part_length * parts_needed'
     ],
-    successTip: 'När ett tal innehåller decimaler används typen float, till exempel 2.5 eller 3.14.',
+    successTip: 'Multiplikation är ett snabbt sätt att räkna ihop flera lika stora mängder, till exempel brodelar.',
     showConsole: true,
     showVariables: true,
-    successCheck: (ctx) => ctx.variables.speed === 2.5
+    doorCondition: { variable: 'bridge_length', op: '==', value: 8 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['bridge_length']) === 8
   },
   {
     id: 5,
     world: 'kontrollcentralen',
     type: 'scene',
-    visualScene: 'antenna',
-    title: 'Aktivera kommunikationssystemet',
-    concept: 'bool – True och False',
-    objective: 'Slå på satellitlänken.',
+    visualScene: 'backpack',
+    title: 'Packa ryggsäcken',
+    concept: 'variabler',
+    objective: 'Packa ryggsäcken med 3 äpplen och 2 vattenflaskor.',
     intro: [
-      'En kommunikationspanel visar SATELLITLÄNK: FRÅNKOPPLAD. Antennen ligger nedfälld.',
-      'bool har bara två värden: True och False.'
+      'Innan roboten går vidare in i anläggningen behöver den packas.',
+      'En variabel är ett namn som pekar på ett värde — namnet kan vara vad du vill, och värdet representerar något i spelvärlden.'
     ],
     ...NO_GRID,
-    availableCommands: ['variabel = True/False (bool)', 'print()'],
-    starterCode: 'communication_online = False\nprint(communication_online)\n',
+    availableCommands: ['variabel = tal (int)'],
+    starterCode: '# Skapa två variabler: apples och water.\n',
     hints: [
-      'communication_online är en bool – ett sanningsvärde som bara kan vara True eller False.',
-      'Just nu är länken avstängd (False). Slå på den istället.',
-      'Prova:\ncommunication_online = True\nprint(communication_online)'
+      'En variabel skapas genom att skriva ett namn, ett likhetstecken, och ett värde: namn = värde.',
+      'Skapa apples med värdet 3, och water med värdet 2.',
+      'Prova:\napples = 3\nwater = 2'
     ],
-    successTip: 'bool representerar bara två tillstånd: True (på) och False (av).',
-    showConsole: true,
+    successTip: 'En variabel är som en namngiven låda: apples pekar på talet 3, water pekar på talet 2.',
     showVariables: true,
-    successCheck: (ctx) => ctx.variables.communication_online === true
+    successCheck: (ctx) => ctx.variables.apples === 3 && ctx.variables.water === 2
   },
   {
     id: 6,
     world: 'kontrollcentralen',
     type: 'scene',
-    visualScene: 'cargo',
-    title: 'Fyll energilagret',
-    concept: 'variabler + addition',
-    objective: 'Registrera leveransen korrekt: 4 befintliga celler och 3 nya.',
+    visualScene: 'rocket',
+    title: 'Bygg raketen',
+    concept: 'variabler + operatorer',
+    objective: 'Räkna ut den totala mängden bränsle i raketens tre tankar.',
     intro: [
-      'Energilagret innehåller 4 energiceller. En transportdrönare levererar 3 till.',
-      'Koden registrerar just nu fel antal nya celler – lagersystemet räknar fel.'
+      'Raketen har tre bränsletankar. Varje tank rymmer 20 enheter bränsle.',
+      'Nu kombinerar du det du lärt dig: variabler och räkneoperatorer i samma program.'
     ],
     ...NO_GRID,
-    availableCommands: ['variabler', '+'],
-    starterCode: 'stored_cells = 4\nnew_cells = 2\n\ntotal_cells = stored_cells + new_cells\n\nprint(total_cells)\n',
+    availableCommands: ['variabler', '*', 'print()'],
+    starterCode: 'fuel = 20\nfuel_tanks = 3\n\n# Räkna ut den totala mängden bränsle.\n',
     hints: [
-      'Leveransen innehöll 3 nya celler, inte 2 – new_cells har fel värde.',
-      'stored_cells ska vara oförändrad (4); det är bara new_cells som behöver rättas.',
-      'Prova:\nstored_cells = 4\nnew_cells = 3\n\ntotal_cells = stored_cells + new_cells\n\nprint(total_cells)'
+      'fuel är bränsle per tank, fuel_tanks är antalet tankar.',
+      'Multiplicera de två variablerna för att få totalen.',
+      'Prova:\ntotal_fuel = fuel * fuel_tanks\nprint(total_fuel)'
     ],
-    successTip: 'Du kan lagra resultatet av en uträkning i en ny variabel: total_cells = stored_cells + new_cells.',
+    successTip: 'Variabler kan användas i beräkningar precis som vanliga tal, och resultatet kan sparas i en ny variabel.',
     showConsole: true,
     showVariables: true,
-    successCheck: (ctx) => ctx.variables.stored_cells === 4 && ctx.variables.new_cells === 3 && ctx.variables.total_cells === 7
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['total_fuel']) === 60
   },
   {
     id: 7,
     world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'fuel-gauge',
-    title: 'Beräkna bränslet efter resan',
-    concept: 'subtraktion',
-    objective: 'Räkna ut hur mycket bränsle som är kvar efter resan.',
+    type: 'robot',
+    title: 'Robotens första uppdrag',
+    concept: 'print, +, -, * och variabler tillsammans',
+    objective: 'Räkna ut hur mycket energi som är kvar, lås upp dörren och ta dig till utgången.',
     intro: [
-      'En expeditionsfarkost återvänder. Den hade 90 liter bränsle och förbrukade 30 liter under resan.',
-      'Beräkningen i kontrollsystemet ger ett omöjligt resultat – något är fel i logiken, inte i syntaxen.'
+      'Dags för det första riktiga uppdraget. Roboten börjar med 100 energienheter.',
+      'På vägen ut väntar en låst dörr, och sedan en kort sväng till utgången.'
     ],
-    ...NO_GRID,
-    availableCommands: ['variabler', '-'],
-    starterCode: 'fuel_before = 90\nfuel_used = 30\n\nfuel_left = fuel_before + fuel_used\n\nprint(fuel_left)\n',
-    hints: [
-      'Kör koden. Bränslemätaren skulle behöva visa mer bränsle än farkosten någonsin hade – det är fel.',
-      'Förbrukat bränsle ska dras bort, inte läggas till.',
-      'Prova:\nfuel_left = fuel_before - fuel_used'
-    ],
-    successTip: 'Samma variabler kan kombineras med olika räknesätt beroende på vad de faktiskt betyder – här behövdes - istället för +.',
-    showConsole: true,
-    showVariables: true,
-    successCheck: (ctx) => ctx.variables.fuel_left === 60
-  },
-  {
-    id: 8,
-    world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'message-relay',
-    title: 'Bygg robotens statusmeddelande',
-    concept: 'str(), text + tal',
-    objective: 'Skicka ett statusmeddelande utan att kraschen upprepas.',
-    intro: [
-      'NOVA:s kommunikationspanel ska skicka en statusrapport till kontrollcentralen.',
-      'Systemet kraschar just nu när det försöker kombinera text och ett tal direkt.'
-    ],
-    ...NO_GRID,
-    availableCommands: ['str()', '+'],
-    starterCode: 'robot_name = "NOVA"\nenergy = 75\n\nmessage = robot_name + " har " + energy + "% energi"\n\nprint(message)\n',
-    hints: [
-      'Kör koden och läs felmeddelandet noga – vilka två typer krockar?',
-      'energy är ett tal (int), inte text (str). Python kan inte klistra ihop text och tal med +.',
-      'Gör om talet till text med str(energy) innan du kombinerar det med resten av meddelandet.',
-      'Prova:\nmessage = robot_name + " har " + str(energy) + "% energi"'
-    ],
-    successTip: 'str() gör om nästan vilket värde som helst till text, så att det går att kombinera med + och andra strängar.',
-    showConsole: true,
-    showVariables: true,
-    successCheck: (ctx) => ctx.variables.message === 'NOVA har 75% energi'
-  },
-  {
-    id: 9,
-    world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'operator-card',
-    title: 'Registrera operatören',
-    concept: 'input()',
-    objective: 'Fråga operatören vad hen heter istället för att gissa.',
-    intro: [
-      'Kontrollcentralen kräver nu att en mänsklig operatör loggar in. Skärmen visar: OPERATÖR SAKNAS.',
-      'input() låter programmet fråga spelaren om något, och vänta på ett svar.'
-    ],
-    ...NO_GRID,
-    availableCommands: ['input()', 'variabler', 'print()'],
-    starterCode: 'name = "Okänd"\n\nprint("Välkommen " + name)\n',
-    hints: [
-      'Systemet ska inte ha ett förbestämt namn – be istället operatören skriva in det.',
-      'input("Vad heter du? ") pausar programmet, visar frågan, och returnerar det operatören skriver.',
-      'Prova:\nname = input("Vad heter du? ")\n\nprint("Välkommen " + name)'
-    ],
-    successTip: 'input() pausar programmet och väntar på ett svar från spelaren – svaret kommer alltid som en str.',
-    showConsole: true,
-    showVariables: true,
-    successCheck: (ctx) => ctx.usedInput && typeof ctx.variables.name === 'string' && ctx.variables.name.trim().length > 0
-  },
-  {
-    id: 10,
-    world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'charging-station',
-    title: 'Laddstationen',
-    concept: 'input() + typkonvertering + addition',
-    objective: 'Reparera laddstationen så att den kan beräkna NOVA:s nya energinivå.',
-    intro: [
-      'NOVA står vid en laddstation med 35% energi kvar. Stationen frågar hur mycket som ska laddas.',
-      'Det här uppdraget kräver allt du lärt dig hittills i Kontrollcentralen.'
-    ],
-    ...NO_GRID,
-    availableCommands: ['input()', 'int()', '+'],
+    width: 6,
+    height: 5,
+    tileGrid: parseGrid(['######', '#S.D##', '###.##', '###G##', '######']),
+    playerStart: { x: 1, y: 1, direction: 'right' },
+    availableCommands: ['variabler', '+', '-', '*', 'move()', 'turn_right()'],
     starterCode:
-      'energy = 35\n\ncharge = input("Hur mycket energi vill du ladda? ")\n\nnew_energy = energy + charge\n\nprint("Ny energinivå:", new_energy)\n',
+      'start_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\nmove()\n',
     hints: [
-      'Kom ihåg att input() alltid ger dig text, oavsett vad operatören skriver.',
-      'Du behöver ett tal för att kunna addera det till energy.',
-      'Funktionen int() kan göra om till exempel "25" till talet 25.',
-      'Prova:\nenergy = 35\ncharge = int(input("Hur mycket energi vill du ladda? "))\nnew_energy = energy + charge\nprint("Ny energinivå:", new_energy)'
+      'Dörren kräver att remaining_energy stämmer exakt, annars förblir den låst.',
+      'Dörren kostar 20 energi. De två rörelserna kostar 15 energi var, alltså 15 * 2 totalt.',
+      'Dra bort båda kostnaderna från start_energy.',
+      'Prova:\nremaining_energy = start_energy - 20 - 15 * 2'
     ],
-    successTip: 'Genom att kombinera input(), int() och vanlig addition kan du bygga ett litet program som faktiskt reagerar på vad operatören skriver.',
+    successTip: 'Du kombinerade print, +/-/*, och variabler i samma program – det är precis så riktiga Python-program byggs.',
     showConsole: true,
     showVariables: true,
-    successCheck: (ctx) => {
-      if (!ctx.usedInput) return false
-      const energy = asNumber(ctx.variables.energy)
-      const newEnergy = asNumber(ctx.variables.new_energy)
-      const charge = ctx.variables.charge
-      if (energy === null || newEnergy === null) return false
-      const chargeAsInt = parseInt(String(charge ?? ''), 10)
-      if (Number.isNaN(chargeAsInt)) return false
-      return newEnergy === energy + chargeAsInt
-    }
+    doorCondition: { variable: 'remaining_energy', op: '==', value: 50 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy', 'energy_left']) === 50
   }
 ]
 

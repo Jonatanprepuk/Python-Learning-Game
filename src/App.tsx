@@ -16,14 +16,24 @@ import { DictionaryPanel } from './ui/DictionaryPanel'
 import { FunctionMachinePanel } from './ui/FunctionMachinePanel'
 import { ObjectWorkshopPanel } from './ui/ObjectWorkshopPanel'
 import { CompletionModal } from './ui/CompletionModal'
+import { HomePage } from './ui/HomePage'
 
 export default function App() {
+  const [view, setView] = useState<'home' | 'game'>('home')
   const [levelIndex, setLevelIndex] = useState(0)
   const [completed, setCompleted] = useState<Set<number>>(new Set())
   const [modalDismissed, setModalDismissed] = useState(false)
 
   const level = LEVELS[levelIndex]
   const session = useLevelSession(level)
+
+  const enterWorld = (worldId: string) => {
+    const firstIndex = LEVELS.findIndex((l) => l.world === worldId)
+    if (firstIndex !== -1) setLevelIndex(firstIndex)
+    setView('game')
+  }
+
+  const backToWorlds = () => setView('home')
 
   const navGroups = useMemo(() => {
     const groups: { world: string; title: string; items: { level: (typeof LEVELS)[number]; index: number }[] }[] = []
@@ -64,7 +74,12 @@ export default function App() {
     [session.code]
   )
 
-  const isLastLevel = levelIndex === LEVELS.length - 1
+  const worldLevelIndexes = useMemo(
+    () => LEVELS.map((l, i) => (l.world === level.world ? i : -1)).filter((i) => i !== -1),
+    [level.world]
+  )
+  const isLastLevel = levelIndex === worldLevelIndexes[worldLevelIndexes.length - 1]
+  const worldLevelPosition = worldLevelIndexes.indexOf(levelIndex)
   const showModal = session.phase === 'success' && !modalDismissed
 
   const goToNext = () => {
@@ -100,19 +115,44 @@ export default function App() {
     }
   })()
 
+  if (view === 'home') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div className="app-header__brand">
+            <span className="app-header__logo" />
+            <div className="app-header__brandtext">
+              <span className="app-header__title">Kodrobot</span>
+              <span className="app-header__subtitle">Robotanläggning · Fjärrstyrd programmering</span>
+            </div>
+          </div>
+        </header>
+        <HomePage worlds={WORLDS} levels={LEVELS} completed={completed} onEnter={enterWorld} />
+      </div>
+    )
+  }
+
+  const currentWorldGroup = navGroups.find((group) => group.world === level.world)
+
   return (
     <div className="app">
       <header className="app-header">
         <div className="app-header__brand">
           <span className="app-header__logo" />
-          Kodrobot
+          <div className="app-header__brandtext">
+            <span className="app-header__title">Kodrobot</span>
+            <span className="app-header__subtitle">Robotanläggning · Fjärrstyrd programmering</span>
+          </div>
         </div>
+        <button className="btn btn--ghost btn--small app-header__home" onClick={backToWorlds}>
+          ← Världar
+        </button>
         <nav className="level-nav">
-          {navGroups.map((group) => (
-            <div className="level-nav__group" key={group.world}>
-              <span className="level-nav__world">{group.title}</span>
+          {currentWorldGroup && (
+            <div className="level-nav__group" key={currentWorldGroup.world}>
+              <span className="level-nav__world">{currentWorldGroup.title}</span>
               <div className="level-nav__row">
-                {group.items.map(({ level: l, index: i }) => (
+                {currentWorldGroup.items.map(({ level: l, index: i }) => (
                   <button
                     key={l.id}
                     className={`level-nav__item${i === levelIndex ? ' level-nav__item--active' : ''}${
@@ -126,11 +166,16 @@ export default function App() {
                 ))}
               </div>
             </div>
-          ))}
+          )}
         </nav>
       </header>
 
-      <ObjectivePanel level={level} levelIndex={levelIndex} totalLevels={LEVELS.length} worldTitle={worldTitle} />
+      <ObjectivePanel
+        level={level}
+        levelIndex={worldLevelPosition}
+        totalLevels={worldLevelIndexes.length}
+        worldTitle={worldTitle}
+      />
 
       {level.intro.length > 0 && (
         <div className="intro-banner">
@@ -203,6 +248,7 @@ export default function App() {
           isLastLevel={isLastLevel}
           onNext={goToNext}
           onDismiss={() => setModalDismissed(true)}
+          onBackToWorlds={backToWorlds}
         />
       )}
     </div>

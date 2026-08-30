@@ -20,11 +20,11 @@ interface GaugeProps {
   min?: number
   max: number
   unit?: string
-  tone?: 'teal' | 'amber' | 'rose'
+  tone?: 'amber' | 'green' | 'red'
 }
 
-/** A horizontal fill gauge reused by battery/speed/fuel/charging scenes. */
-export function Gauge({ value, min = 0, max, unit = '', tone = 'teal' }: GaugeProps) {
+/** A horizontal fill gauge reused by scenes that show a live measurement. */
+export function Gauge({ value, min = 0, max, unit = '', tone = 'amber' }: GaugeProps) {
   const shown = value ?? min
   const pct = Math.max(0, Math.min(100, ((shown - min) / (max - min)) * 100))
   return (

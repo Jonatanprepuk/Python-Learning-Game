@@ -1,10 +1,17 @@
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
-export type TileKind = 'empty' | 'wall' | 'resource' | 'goal'
+export type TileKind = 'empty' | 'wall' | 'resource' | 'goal' | 'door'
 
 export interface GridPos {
   x: number
   y: number
+}
+
+/** A door tile blocks movement like a wall until this comparison against a live variable is true. */
+export interface DoorCondition {
+  variable: string
+  op: '==' | '>=' | '<=' | '>' | '<'
+  value: number
 }
 
 /** Which visual "world view" a level uses alongside the shared editor/hints/controls. */
@@ -57,6 +64,8 @@ export interface LevelDefinition {
   watchDict?: string
   /** Scene: which bespoke Kontrollcentralen visual to render (see ControlCenterScene). */
   visualScene?: string
+  /** Robot: a door tile stays closed until this condition on a live variable holds. */
+  doorCondition?: DoorCondition
   /**
    * Custom win condition for non-robot levels. Robot levels fall back to
    * checkWin(); other levels fall back to "ran without error" if omitted.
@@ -71,6 +80,8 @@ export interface SimWorldState {
   totalResources: number
   bumped: boolean
   message: string | null
+  /** Whether door tiles currently count as passable (evaluated live against the player's variables). */
+  doorsOpen: boolean
 }
 
 export type StepType =
@@ -130,6 +141,7 @@ export interface WorkerRequest {
   level?: {
     tileGrid: TileKind[][]
     playerStart: LevelDefinition['playerStart']
+    doorCondition?: DoorCondition
   }
 }
 

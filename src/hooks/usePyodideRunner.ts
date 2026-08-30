@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Direction, RunResult, TileKind, WorkerRequest, WorkerResponse } from '../types'
+import type { Direction, DoorCondition, RunResult, TileKind, WorkerRequest, WorkerResponse } from '../types'
 
 const RUN_TIMEOUT_MS = 10000
 
@@ -10,6 +10,7 @@ interface RunArgs {
   tileGrid: TileKind[][]
   playerStart: { x: number; y: number; direction: Direction }
   inputs?: string[]
+  doorCondition?: DoorCondition
 }
 
 export function usePyodideRunner() {
@@ -101,7 +102,7 @@ export function usePyodideRunner() {
           type: 'run',
           code: args.code,
           inputs: args.inputs,
-          level: { tileGrid: args.tileGrid, playerStart: args.playerStart }
+          level: { tileGrid: args.tileGrid, playerStart: args.playerStart, doorCondition: args.doorCondition }
         }
         worker.postMessage(req)
       })
