@@ -1,187 +1,246 @@
 import type { LevelDefinition, TileKind } from '../types'
+import { pickNumeric } from './valueBinding'
 
-// Small ASCII helper so grids stay readable:
-// # = wall, . = empty, R = resource, G = goal, S = start (rendered as empty)
-function parseGrid(rows: string[]): TileKind[][] {
+// Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
+// doorCondition holds), G = goal, S = start (rendered as empty).
+export function parseGrid(rows: string[]): TileKind[][] {
   const map: Record<string, TileKind> = {
     '#': 'wall',
     '.': 'empty',
-    R: 'resource',
+    D: 'door',
     G: 'goal',
     S: 'empty'
   }
   return rows.map((row) => row.split('').map((ch) => map[ch] ?? 'empty'))
 }
 
+// Scene-type levels don't need a grid, but LevelDefinition keeps
+// tileGrid/playerStart required so the shared session/world-state plumbing
+// doesn't need to branch on level type.
+const NO_GRID: Pick<LevelDefinition, 'width' | 'height' | 'tileGrid' | 'playerStart'> = {
+  width: 1,
+  height: 1,
+  tileGrid: [['empty'] as TileKind[]],
+  playerStart: { x: 0, y: 0, direction: 'right' }
+}
+
+export interface WorldMeta {
+  id: string
+  title: string
+  tagline: string
+  status: 'available' | 'soon'
+}
+
+export const WORLDS: WorldMeta[] = [
+  {
+    id: 'kontrollcentralen',
+    title: 'Kontrollcentralen',
+    tagline: 'Variabler, tal och de fyra räknesätten.',
+    status: 'available'
+  },
+  {
+    id: 'sakerhetssystemet',
+    title: 'Säkerhetssystemet',
+    tagline: 'Logik och villkor.',
+    status: 'soon'
+  },
+  {
+    id: 'produktionshallen',
+    title: 'Produktionshallen',
+    tagline: 'Loopar.',
+    status: 'soon'
+  },
+  {
+    id: 'datacentret',
+    title: 'Datacentret',
+    tagline: 'Listor och dictionaries.',
+    status: 'soon'
+  },
+  {
+    id: 'robotlabbet',
+    title: 'Robotlabbet',
+    tagline: 'Funktioner.',
+    status: 'soon'
+  },
+  {
+    id: 'expeditionen',
+    title: 'Expeditionen',
+    tagline: 'Kombinerade uppdrag.',
+    status: 'soon'
+  },
+  {
+    id: 'autonoma-system',
+    title: 'Autonoma system',
+    tagline: 'Klasser.',
+    status: 'soon'
+  }
+]
+
 export const LEVELS: LevelDefinition[] = [
   {
     id: 1,
-    title: 'Första steget',
-    concept: 'move()',
-    objective: 'Få roboten att nå den gröna rutan.',
-    intro: [
-      'Välkommen till forskningsstationen! Din robot väntar på instruktioner.',
-      'Kommandot move() flyttar roboten ett steg framåt i den riktning den tittar.'
-    ],
-    width: 6,
-    height: 3,
-    tileGrid: parseGrid(['######', '#S..G#', '######']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()'],
-    starterCode: 'move()',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'robot-wake',
+    title: 'Ge roboten ett namn',
+    concept: 'print() och strängar',
+    objective: 'Skapa en variabel (till exempel name) med ett namn som text, och använd print() för att hälsa på roboten.',
+    ...NO_GRID,
+    availableCommands: ['variabel = "text" (str)', 'print()'],
+    starterCode: 'name =  # skriv ett namn som text här\n\n# Använd print() för att hälsa på roboten.\n',
     hints: [
-      'Roboten behöver flytta sig tre steg för att nå målet.',
-      'Du kan skriva move() flera gånger, en gång per rad.',
-      'Prova:\nmove()\nmove()\nmove()'
+      'Fyll i ett namn som text efter likhetstecknet, till exempel "NOVA".',
+      'Använd print() för att skriva ut hälsningen.',
+      'Prova:\nname = "NOVA"\nprint(name)'
     ],
-    successTip: 'Bra jobbat! move() flyttar roboten ett steg framåt varje gång den anropas.'
+    successTip: 'En variabel är som en namngiven låda: name pekar nu på texten du valde.',
+    showConsole: true,
+    successCheck: (ctx) => ctx.consoleLines.some((line) => line.trim().length > 0)
   },
   {
     id: 2,
-    title: 'Runt hörnet',
-    concept: 'sekvenser + turn_right()',
-    objective: 'Ta dig runt hörnet och nå den gröna rutan.',
-    intro: [
-      'Den här gången ligger målet runt ett hörn.',
-      'Använd turn_right() för att vrida roboten 90 grader åt höger.'
-    ],
-    width: 6,
-    height: 5,
-    tileGrid: parseGrid(['######', '#S..##', '###.##', '###G##', '######']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'turn_left()', 'turn_right()'],
-    starterCode: 'move()\nmove()\n',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'backpack',
+    title: 'Packa ryggsäcken',
+    concept: 'variabler',
+    objective: 'Skapa två variabler med exakt dessa namn: apples satt till 3, och water satt till 2.',
+    ...NO_GRID,
+    availableCommands: ['variabel = tal (int)'],
+    starterCode: 'apples =  # hur många äpplen?\nwater =  # hur många vattenflaskor?\n',
     hints: [
-      'Roboten kan inte gå rakt fram hela vägen – det finns en vägg.',
-      'När roboten inte kan gå längre fram kan du vrida den med turn_right().',
-      'Prova:\nmove()\nmove()\nturn_right()\nmove()\nmove()'
+      'Fyll i värdet efter likhetstecknet för varje variabel.',
+      'apples ska bli 3, water ska bli 2.',
+      'Prova:\napples = 3\nwater = 2'
     ],
-    successTip: 'turn_right() och turn_left() vrider roboten utan att flytta den.'
+    successTip: 'En variabel är som en namngiven låda: apples pekar på talet 3, water pekar på talet 2.',
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.apples === 3 && ctx.variables.water === 2
   },
   {
     id: 3,
-    title: 'Upprepning',
-    concept: 'for-loopar',
-    objective: 'Ta roboten hela vägen till den gröna rutan.',
-    intro: [
-      'Den här korridoren är lång. Det går att skriva move() många gånger, men det finns ett smidigare sätt.'
-    ],
-    width: 11,
+    world: 'kontrollcentralen',
+    type: 'robot',
+    title: 'Rum 1 — Energilåset',
+    concept: 'addition (+)',
+    objective: 'Spara summan av cell_a och cell_b i en variabel som heter exakt energy — dörren läser av den och öppnas automatiskt.',
+    width: 8,
     height: 3,
-    tileGrid: parseGrid(['###########', '#S.......G#', '###########']),
+    tileGrid: parseGrid(['########', '#S..D.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'for i in range(n):'],
-    starterCode: '# Hur långt är det till målet?\nmove()\n',
+    availableCommands: ['+', 'move()'],
+    starterCode: 'cell_a = 20\ncell_b = 30\n\nenergy =  # hur mycket energi ger cellerna tillsammans?\n\nmove()\n',
     hints: [
-      'Det är åtta steg till målet – du kan skriva move() åtta gånger om du vill.',
-      'Bra! Men kan du göra samma sak med färre rader kod?',
-      'En for-loop upprepar kod åt dig: for i in range(8): move()',
-      'Prova:\nfor i in range(8):\n    move()'
+      'Roboten kommer inte hela vägen fram än – räkna ut hur många steg det faktiskt är till dörren och sedan till målet.',
+      '+ adderar två tal i Python: cell_a + cell_b.',
+      'Fyll i uträkningen efter energy =.',
+      'Prova:\nenergy = cell_a + cell_b\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
-    successTip: 'for i in range(8): move() upprepar move() åtta gånger – samma resultat, mycket kortare kod.'
+    successTip: 'Dörren lyssnar på variabeln energy hela tiden den körs — du ser den öppnas i samma ögonblick värdet blir rätt.',
+    showConsole: true,
+    showVariables: true,
+    doorCondition: { variable: 'energy', op: '==', value: 50 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['energy']) === 50
   },
   {
     id: 4,
-    title: 'Samla energi',
-    concept: 'loopar + collect()',
-    objective: 'Samla alla energiceller och ta dig till målet.',
-    intro: [
-      'Stationen behöver energi. Kör över energicellerna och samla in dem med collect().',
-      'collect() plockar upp det som ligger på rutan roboten står på.'
-    ],
-    width: 10,
+    world: 'kontrollcentralen',
+    type: 'robot',
+    title: 'Rum 2 — Säkerhetsdörren',
+    concept: 'subtraktion (-)',
+    objective: 'Spara resultatet i en variabel som heter exakt remaining_energy — dörren öppnas automatiskt när den stämmer.',
+    width: 8,
     height: 3,
-    tileGrid: parseGrid(['##########', '#SRRRRRRG#', '##########']),
+    tileGrid: parseGrid(['########', '#S..D.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'for i in range(n):'],
-    starterCode: 'for i in range(6):\n    move()\n    collect()\n',
+    availableCommands: ['-', 'move()'],
+    starterCode:
+      'total_energy = 100\ndoor_cost = 35\n\nremaining_energy =  # hur mycket energi är kvar?\n\nmove()\nmove()',
     hints: [
-      'Varje energicell ligger på en egen ruta – flytta dit och använd collect().',
-      'En loop kan innehålla flera rader kod, till exempel både move() och collect().',
-      'Efter att du samlat alla celler behöver roboten flytta ett steg till för att nå målet.'
+      'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
+      '- drar bort ett värde från ett annat: total_energy - door_cost.',
+      'Fyll i uträkningen efter remaining_energy =.',
+      'Prova:\nremaining_energy = total_energy - door_cost\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
-    successTip: 'En for-loop kan upprepa flera kommandon i taget, inte bara ett.',
-    requireAllResources: true
+    successTip: 'Samma variabler kan kombineras med olika räknesätt beroende på vad de betyder i sammanhanget.',
+    showConsole: true,
+    showVariables: true,
+    doorCondition: { variable: 'remaining_energy', op: '==', value: 65 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy']) === 65
   },
   {
     id: 5,
-    title: 'Villkor',
-    concept: 'if-satser',
-    objective: 'Samla energicellerna som finns på vägen till målet.',
-    intro: [
-      'Den här korridoren har energiceller utspridda lite då och då.',
-      'Med resource_ahead() kan roboten känna av om det finns något på rutan framför den innan den går dit.'
-    ],
-    width: 10,
+    world: 'kontrollcentralen',
+    type: 'robot',
+    title: 'Rum 3 — Bron',
+    concept: 'multiplikation (*)',
+    objective: 'Spara resultatet i en variabel som heter exakt bridge_length — bron läggs ut automatiskt när den stämmer.',
+    width: 8,
     height: 3,
-    tileGrid: parseGrid(['##########', '#SR.RR.RG#', '##########']),
+    tileGrid: parseGrid(['########', '#S.DD.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'resource_ahead()', 'if:'],
-    starterCode: 'for i in range(7):\n    if resource_ahead():\n        move()\n        collect()\n    else:\n        move()\n',
+    availableCommands: ['*', 'move()'],
+    starterCode:
+      'part_length = 2\nparts_needed = 4\n\nbridge_length =  # hur lång blir bron totalt?\n\nmove()',
     hints: [
-      'Alla rutor har inte en energicell på sig – ibland är det bara tomt.',
-      'resource_ahead() svarar True eller False beroende på om det finns något på rutan framför roboten.',
-      'Använd if resource_ahead(): innan du väljer att samla in, annars bara flytta vidare.'
+      'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
+      '* multiplicerar: part_length * parts_needed.',
+      'Fyll i uträkningen efter bridge_length =.',
+      'Prova:\nbridge_length = part_length * parts_needed\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
-    successTip: 'if-satser låter koden fatta beslut baserat på vad som händer i spelvärlden.',
-    requireAllResources: true
+    successTip: 'Multiplikation är ett snabbt sätt att räkna ihop flera lika stora mängder, till exempel brodelar.',
+    showConsole: true,
+    showVariables: true,
+    doorCondition: { variable: 'bridge_length', op: '==', value: 8 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['bridge_length']) === 8
   },
   {
     id: 6,
-    title: 'Okänd sträcka',
-    concept: 'while-loopar',
-    objective: 'Ta roboten till slutet av korridoren.',
-    intro: [
-      'Den här korridoren är lång, och den här gången struntar vi i att räkna rutorna i förväg.',
-      'can_move() svarar True om roboten kan gå ett steg framåt, annars False.'
-    ],
-    width: 11,
-    height: 3,
-    tileGrid: parseGrid(['###########', '#S.......G#', '###########']),
-    playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'can_move()', 'while:'],
-    starterCode: 'while can_move():\n    move()\n',
+    world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'rocket',
+    title: 'Bygg raketen',
+    concept: 'variabler + operatorer',
+    objective: 'Spara resultatet i en variabel som heter exakt total_fuel.',
+    ...NO_GRID,
+    availableCommands: ['variabler', '*', 'print()'],
+    starterCode: 'fuel = 20\nfuel_tanks = 3\n\n# Räkna ut den totala mängden bränsle.\n',
     hints: [
-      'Du skulle kunna räkna rutorna själv, men det finns ett smidigare sätt.',
-      'while can_move(): upprepar kod ända tills roboten inte kan gå längre fram.',
-      'Prova:\nwhile can_move():\n    move()'
+      'Multiplicera de två variablerna: fuel * fuel_tanks.',
+      'Spara resultatet i en variabel som heter exakt total_fuel.',
+      'Prova:\ntotal_fuel = fuel * fuel_tanks\nprint(total_fuel)'
     ],
-    successTip: 'while-loopar upprepar kod så länge ett villkor är sant – perfekt när du inte vet hur många gånger i förväg.'
+    successTip: 'Variabler kan användas i beräkningar precis som vanliga tal, och resultatet kan sparas i en ny variabel.',
+    showConsole: true,
+    showVariables: true,
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['total_fuel']) === 60
   },
   {
     id: 7,
-    title: 'Funktioner',
-    concept: 'def – egna funktioner',
-    objective: 'Skörda alla tre rader med energiceller och nå målet.',
-    intro: [
-      'Stationens sista uppdrag har tre identiska rader med energiceller.',
-      'Med def kan du bygga ett eget kommando som du sedan kan använda flera gånger.'
-    ],
+    world: 'kontrollcentralen',
+    type: 'robot',
+    title: 'Robotens första uppdrag',
+    concept: 'print, +, -, * och variabler tillsammans',
+    objective:
+      'Spara resultatet i en variabel som heter exakt remaining_energy — dörren öppnas automatiskt, och sedan tar du dig till utgången.',
     width: 6,
-    height: 9,
-    tileGrid: parseGrid([
-      '######',
-      '#SRRR#',
-      '#....#',
-      '#RRR.#',
-      '#....#',
-      '#.RRR#',
-      '#....#',
-      '#...G#',
-      '######'
-    ]),
+    height: 5,
+    tileGrid: parseGrid(['######', '#S.D##', '###.##', '###G##', '######']),
     playerStart: { x: 1, y: 1, direction: 'right' },
-    availableCommands: ['move()', 'collect()', 'turn_left()', 'turn_right()', 'def name():'],
+    availableCommands: ['variabler', '+', '-', '*', 'move()', 'turn_right()'],
     starterCode:
-      'def harvest_line():\n    for i in range(3):\n        move()\n        collect()\n\nharvest_line()\n',
+      'start_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\n',
     hints: [
-      'harvest_line() finns redan definierad åt dig – den skördar tre rutor framåt.',
-      'Efter varje rad behöver roboten vända sig och flytta ner till nästa rad innan den skördar igen.',
-      'Du kan anropa harvest_line() flera gånger – den fungerar oavsett vilket håll roboten tittar åt.',
-      'Fullständig lösning:\nharvest_line()\nturn_right()\nmove()\nmove()\nturn_right()\nharvest_line()\nturn_left()\nmove()\nmove()\nturn_left()\nharvest_line()\nturn_right()\nmove()\nmove()'
+      'Dörren kostar 20 energi. De två rörelserna kostar 15 energi var, alltså 15 * 2 totalt.',
+      'Dra bort båda kostnaderna från start_energy, och spara resultatet i en variabel som heter exakt remaining_energy.',
+      'Roboten kommer inte riktigt fram till utgången än – den behöver ett steg till på slutet.',
+      'Prova:\nremaining_energy = start_energy - 20 - 15 * 2\n\nmove()\nmove()\nturn_right()\nmove()\nmove()'
     ],
-    successTip: 'Funktioner låter dig paketera flera kommandon under ett eget namn och återanvända dem.',
-    requireAllResources: true
+    successTip: 'Du kombinerade print, +/-/*, och variabler i samma program – det är precis så riktiga Python-program byggs.',
+    showConsole: true,
+    showVariables: true,
+    doorCondition: { variable: 'remaining_energy', op: '==', value: 50 },
+    successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy', 'energy_left']) === 50
   }
 ]
 

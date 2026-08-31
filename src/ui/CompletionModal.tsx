@@ -7,6 +7,7 @@ interface CompletionModalProps {
   isLastLevel: boolean
   onNext: () => void
   onDismiss: () => void
+  onBackToWorlds: () => void
 }
 
 export function CompletionModal({
@@ -15,7 +16,8 @@ export function CompletionModal({
   runCount,
   isLastLevel,
   onNext,
-  onDismiss
+  onDismiss,
+  onBackToWorlds
 }: CompletionModalProps) {
   return (
     <div className="modal-backdrop">
@@ -44,8 +46,8 @@ export function CompletionModal({
             Stanna kvar
           </button>
           {isLastLevel ? (
-            <button className="btn btn--primary" onClick={onDismiss}>
-              Alla uppdrag klara!
+            <button className="btn btn--primary" onClick={onBackToWorlds}>
+              Världen klar — till kartan
             </button>
           ) : (
             <button className="btn btn--primary" onClick={onNext}>

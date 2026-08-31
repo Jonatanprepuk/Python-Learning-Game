@@ -13,12 +13,15 @@ interface GameWorldProps {
   level: LevelDefinition
   worldState: SimWorldState
   lastStep: TraceStep | null
+  /** Playground only: lets clicking a tile paint it with the active tool. */
+  editable?: boolean
+  onTileClick?: (x: number, y: number) => void
 }
 
 const MAX_CELL = 56
 const MIN_CELL = 30
 
-export function GameWorld({ level, worldState, lastStep }: GameWorldProps) {
+export function GameWorld({ level, worldState, lastStep, editable, onTileClick }: GameWorldProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [cellSize, setCellSize] = useState(44)
   const [effects, setEffects] = useState<Effect[]>([])
@@ -74,11 +77,24 @@ export function GameWorld({ level, worldState, lastStep }: GameWorldProps) {
           row.map((kind, x) => {
             const isCollectedResource = kind === 'resource' && !collectedSet.has(`${x},${y}`)
             const displayKind = isCollectedResource ? 'empty' : kind
+            const doorOpen = displayKind === 'door' && worldState.doorsOpen
             return (
-              <div key={`${x}-${y}`} className={`tile tile--${displayKind}`}>
+              <div
+                key={`${x}-${y}`}
+                className={`tile tile--${displayKind}${doorOpen ? ' tile--door-open' : ''}${
+                  editable ? ' tile--editable' : ''
+                }`}
+                onClick={editable ? () => onTileClick?.(x, y) : undefined}
+              >
                 {displayKind === 'resource' && <span className="tile__resource" />}
                 {displayKind === 'goal' && <span className="tile__goal" />}
                 {displayKind === 'wall' && <span className="tile__wall" />}
+                {displayKind === 'door' && (
+                  <>
+                    <span className="tile__door tile__door--left" />
+                    <span className="tile__door tile__door--right" />
+                  </>
+                )}
               </div>
             )
           })

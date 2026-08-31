@@ -5,13 +5,16 @@ import type { FriendlyError } from '../types'
  * CPython traceback text. We pattern-match the last line ("XyzError: ...")
  * plus the last "line N" reference to build a friendly Swedish explanation.
  */
-export function translateError(raw: string, lineOffset = 0): FriendlyError {
+export function translateError(raw: string): FriendlyError {
   const cleaned = raw.replace(/^PythonError:\s*/i, '').trim()
   const lines = cleaned.split('\n').filter(Boolean)
   const lastLine = lines[lines.length - 1] ?? cleaned
 
+  // The player's code runs as its own exec()'d unit (see buildSource), so the
+  // innermost "line N" in the traceback is already the player's own line —
+  // no preamble-length offset needed.
   const lineMatch = [...cleaned.matchAll(/line (\d+)/g)].pop()
-  let line = lineMatch ? parseInt(lineMatch[1], 10) - lineOffset : undefined
+  let line = lineMatch ? parseInt(lineMatch[1], 10) : undefined
   if (line !== undefined && line < 1) line = undefined
 
   const base: Omit<FriendlyError, 'title' | 'message'> = {
@@ -24,7 +27,7 @@ export function translateError(raw: string, lineOffset = 0): FriendlyError {
       ...base,
       title: 'Programmet körde för länge',
       message:
-        'Det ser ut som en oändlig loop – koden verkar aldrig sluta köra. Kontrollera att din while-loop verkligen kan ta slut.'
+        'Koden gjorde alldeles för många saker för att vara ett litet övningsprogram – vanligen betyder det en while-loop som aldrig blir klar, en for-loop med ett alldeles för stort tal, eller en funktion som anropar sig själv (rekursion) utan att någonsin stanna. Kontrollera att villkoret i din loop verkligen kan bli falskt, eller att en rekursiv funktion har ett fall som avslutar den.'
     }
   }
 
@@ -79,6 +82,20 @@ export function translateError(raw: string, lineOffset = 0): FriendlyError {
       }
     }
     case 'TypeError': {
+      if (/can only concatenate str/.test(detail)) {
+        return {
+          ...base,
+          title: 'Fel datatyp',
+          message: `Du försökte slå ihop text med något som inte är text${line ? ` på rad ${line}` : ''}. Gör om värdet till text med str(...), eller använd en f-sträng: f"...{variabel}...".`
+        }
+      }
+      if (/unsupported operand type/.test(detail)) {
+        return {
+          ...base,
+          title: 'Fel datatyp',
+          message: `De här värdena går inte att räkna ihop med varandra${line ? ` på rad ${line}` : ''}. Kontrollera att båda har samma typ, till exempel att båda är int eller båda är str.`
+        }
+      }
       if (/positional argument/.test(detail) || /argument/.test(detail)) {
         return {
           ...base,
