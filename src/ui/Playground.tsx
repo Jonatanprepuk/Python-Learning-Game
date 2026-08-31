@@ -93,7 +93,7 @@ export function Playground({ onBack }: PlaygroundProps) {
     <div className="app">
       <header className="app-header">
         <div className="app-header__brand">
-          <img src="/logo.webp" alt="CSA" className="app-header__logo" />
+          <img src={`${import.meta.env.BASE_URL}logo.webp`} alt="CSA" className="app-header__logo" />
         </div>
         <button className="btn btn--ghost btn--small app-header__home" onClick={onBack}>
           ← Hem
