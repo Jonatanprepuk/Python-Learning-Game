@@ -1,29 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surfaces — warm graphite, not blue-black */
-  --foundry: #15181a;
-  --panel: #1d2124;
-  --panel-raised: #23282b;
-  --slot: #0e1011;
-  --line: #40474b;
-  --line-soft: #2b3134;
+  /* Surfaces — dark charcoal with a faint blue cast, clear steps apart so
+     panels read distinctly instead of blending together */
+  --foundry: #10161d;
+  --panel: #1a232c;
+  --panel-raised: #26333f;
+  --slot: #0a0e13;
+  --line: #3d5568;
+  --line-soft: #263442;
 
-  /* Text — warm paper, not cold white */
-  --paper: #eae4d6;
-  --paper-dim: #9aa09f;
-  --paper-faint: #7c8283;
+  /* Text — crisp and high-contrast; the palette's pale blue is reserved for
+     secondary text only, never the primary reading color */
+  --paper: #eef3f6;
+  --paper-dim: #a9bac5;
+  --paper-faint: #6c8091;
 
-  /* Signal lights — the only three colors that carry meaning */
-  --amber: #f0a63b;
-  --amber-glow: rgba(240, 166, 59, 0.35);
-  --red: #db4c3f;
-  --red-glow: rgba(219, 76, 63, 0.32);
-  --green: #5fb86b;
-  --green-glow: rgba(95, 184, 107, 0.32);
+  /* Signal lights — CSA:s gul / rosa / klargrön, used only as accents (buttons,
+     status, highlights) — never spread across backgrounds or body text */
+  --amber: #f0be00;
+  --amber-glow: rgba(240, 190, 0, 0.35);
+  --red: #ea528e;
+  --red-glow: rgba(234, 82, 142, 0.32);
+  --green: #6cb532;
+  --green-glow: rgba(108, 181, 50, 0.32);
 
-  --wall-1: #2c3134;
-  --wall-2: #383f42;
+  --wall-1: #2e3d44;
+  --wall-2: #3c4f58;
 
   --radius-sm: 3px;
   --radius-md: 5px;
@@ -89,55 +92,10 @@ code {
 }
 
 .app-header__logo {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(155deg, var(--panel-raised), var(--slot));
-  border: 1px solid var(--line);
-  position: relative;
+  height: 36px;
+  width: auto;
   flex-shrink: 0;
-}
-.app-header__logo::before {
-  content: '';
-  position: absolute;
-  inset: 8px;
-  border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 10px var(--amber-glow);
-}
-.app-header__logo::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--line);
-  box-shadow: 26px 0 0 var(--line), 0 20px 0 var(--line), 26px 20px 0 var(--line);
-}
-
-.app-header__brandtext {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.app-header__title {
-  font-family: 'Big Shoulders Stencil', 'IBM Plex Sans', sans-serif;
-  font-weight: 700;
-  font-size: 1.6rem;
-  letter-spacing: 0.03em;
-  line-height: 1;
-  color: var(--paper);
-}
-
-.app-header__subtitle {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--paper-faint);
+  object-fit: contain;
 }
 
 .app-header__home {
@@ -197,6 +155,21 @@ code {
   gap: 14px;
 }
 
+.home__playground-link {
+  border: none;
+  background: none;
+  color: var(--paper-dim);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.home__playground-link:hover {
+  color: var(--amber);
+  border-bottom-color: var(--amber);
+}
+
 .world-card {
   position: relative;
   display: flex;
@@ -207,6 +180,8 @@ code {
   padding: 18px 18px 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
+  border-top-width: 3px;
+  border-top-color: var(--line);
   background: linear-gradient(180deg, var(--panel-raised), var(--panel));
   color: var(--paper);
   cursor: pointer;
@@ -428,16 +403,32 @@ code {
   font-size: 0.98rem;
 }
 
-.intro-banner {
+/* ---------- Playground toolbar ---------- */
+
+.playground-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   background: var(--panel);
-  border-left: 3px solid var(--amber);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 8px 16px;
-  color: var(--paper-dim);
-  font-size: 0.88rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
 }
-.intro-banner p {
-  margin: 3px 0;
+
+.playground-toolbar__label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--paper-faint);
+  margin-right: 4px;
+}
+
+.playground-toolbar__hint {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--paper-faint);
 }
 
 /* ---------- Main split ---------- */
@@ -464,7 +455,7 @@ code {
 }
 
 .panel--editor {
-  background: #1a1c1d;
+  background: #101a20;
 }
 
 .code-editor {
@@ -967,7 +958,7 @@ code {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #3a3f41;
+  background: #2c3a42;
   transition: background 0.4s ease, box-shadow 0.4s ease;
 }
 .robot-portrait--awake .robot-portrait__eye {
@@ -1025,7 +1016,7 @@ code {
   box-shadow: 0 0 8px var(--red-glow);
 }
 .backpack-item--water {
-  background: #3f9fc4;
+  background: #67b9e8;
   border-radius: 3px 3px 50% 50%;
   box-shadow: 0 0 8px rgba(63, 159, 196, 0.4);
 }
@@ -1081,8 +1072,14 @@ code {
 
 .tile {
   position: relative;
-  background: #131617;
+  background: #0c1418;
   border: 1px solid rgba(255, 255, 255, 0.02);
+}
+.tile--editable {
+  cursor: pointer;
+}
+.tile--editable:hover {
+  box-shadow: inset 0 0 0 2px var(--amber);
 }
 .tile::before {
   content: '';

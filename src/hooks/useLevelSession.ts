@@ -34,7 +34,10 @@ export function useLevelSession(level: LevelDefinition) {
   const inputsRef = useRef<string[]>([])
   const consoleRef = useRef<string[]>([])
 
-  // Reset all per-level state whenever the active level changes.
+  // Reset all per-level state whenever the active level changes. Keyed on
+  // level.id (not the whole object) so that a level whose tileGrid mutates in
+  // place while staying "the same level" — e.g. the Playground's editable
+  // grid — doesn't wipe the player's code/console every time a tile changes.
   useEffect(() => {
     runToken.current += 1
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -55,6 +58,14 @@ export function useLevelSession(level: LevelDefinition) {
     setLastCall(null)
     setLastReturn(null)
     setCurrentVariables(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level.id])
+
+  // Re-derive worldState from the current level.tileGrid without touching
+  // code/console/phase — used after editing the Playground's grid so a
+  // freshly-placed coin doesn't render as "already collected".
+  const refreshWorld = useCallback(() => {
+    setWorldState(createInitialState(level.tileGrid, level.playerStart))
   }, [level])
 
   const stop = useCallback(() => {
@@ -263,6 +274,7 @@ export function useLevelSession(level: LevelDefinition) {
     currentVariables,
     runCode,
     stop,
-    reset
+    reset,
+    refreshWorld
   }
 }

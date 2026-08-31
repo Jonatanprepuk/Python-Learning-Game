@@ -17,11 +17,69 @@ import { FunctionMachinePanel } from './ui/FunctionMachinePanel'
 import { ObjectWorkshopPanel } from './ui/ObjectWorkshopPanel'
 import { CompletionModal } from './ui/CompletionModal'
 import { HomePage } from './ui/HomePage'
+import { Playground } from './ui/Playground'
 
+function pathToRoute(pathname: string): 'app' | 'playground' {
+  return pathname.replace(/\/+$/, '') === '/playground' ? 'playground' : 'app'
+}
+
+/**
+ * Top-level router. Kept deliberately tiny: KodrobotApp owns a Pyodide
+ * session (via useLevelSession) the moment it mounts, so it must NOT be
+ * mounted at all while the Playground route is active — otherwise two
+ * separate Pyodide workers would load at once.
+ */
 export default function App() {
+  const [route, setRoute] = useState<'app' | 'playground'>(() => pathToRoute(window.location.pathname))
+
+  useEffect(() => {
+    const onPopState = () => setRoute(pathToRoute(window.location.pathname))
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const goToPlayground = () => {
+    window.history.pushState(null, '', '/playground')
+    setRoute('playground')
+  }
+
+  const leavePlayground = () => {
+    window.history.pushState(null, '', '/')
+    setRoute('app')
+  }
+
+  if (route === 'playground') {
+    return <Playground onBack={leavePlayground} />
+  }
+
+  return <KodrobotApp onOpenPlayground={goToPlayground} />
+}
+
+const COMPLETED_STORAGE_KEY = 'csa-programmeringskurs:completed-levels'
+
+function loadCompleted(): Set<number> {
+  try {
+    const raw = window.localStorage.getItem(COMPLETED_STORAGE_KEY)
+    if (!raw) return new Set()
+    const ids = JSON.parse(raw)
+    return Array.isArray(ids) ? new Set(ids.filter((id) => typeof id === 'number')) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveCompleted(completed: Set<number>) {
+  try {
+    window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify([...completed]))
+  } catch {
+    // Private browsing / storage disabled — progress just won't persist.
+  }
+}
+
+function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
   const [view, setView] = useState<'home' | 'game'>('home')
   const [levelIndex, setLevelIndex] = useState(0)
-  const [completed, setCompleted] = useState<Set<number>>(new Set())
+  const [completed, setCompleted] = useState<Set<number>>(loadCompleted)
   const [modalDismissed, setModalDismissed] = useState(false)
 
   const level = LEVELS[levelIndex]
@@ -68,6 +126,11 @@ export default function App() {
       })
     }
   }, [session.phase, level.id])
+
+  // Persist completed levels so progress survives a page refresh.
+  useEffect(() => {
+    saveCompleted(completed)
+  }, [completed])
 
   const linesOfCode = useMemo(
     () => session.code.split('\n').filter((l) => l.trim().length > 0).length,
@@ -120,14 +183,10 @@ export default function App() {
       <div className="app">
         <header className="app-header">
           <div className="app-header__brand">
-            <span className="app-header__logo" />
-            <div className="app-header__brandtext">
-              <span className="app-header__title">Kodrobot</span>
-              <span className="app-header__subtitle">Robotanläggning · Fjärrstyrd programmering</span>
-            </div>
+            <img src="/logo.webp" alt="CSA" className="app-header__logo" />
           </div>
         </header>
-        <HomePage worlds={WORLDS} levels={LEVELS} completed={completed} onEnter={enterWorld} />
+        <HomePage worlds={WORLDS} levels={LEVELS} completed={completed} onEnter={enterWorld} onOpenPlayground={onOpenPlayground} />
       </div>
     )
   }
@@ -138,11 +197,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="app-header__brand">
-          <span className="app-header__logo" />
-          <div className="app-header__brandtext">
-            <span className="app-header__title">Kodrobot</span>
-            <span className="app-header__subtitle">Robotanläggning · Fjärrstyrd programmering</span>
-          </div>
+          <img src="/logo.webp" alt="CSA" className="app-header__logo" />
         </div>
         <button className="btn btn--ghost btn--small app-header__home" onClick={backToWorlds}>
           ← Världar
@@ -176,14 +231,6 @@ export default function App() {
         totalLevels={worldLevelIndexes.length}
         worldTitle={worldTitle}
       />
-
-      {level.intro.length > 0 && (
-        <div className="intro-banner">
-          {level.intro.map((line, i) => (
-            <p key={i}>{line}</p>
-          ))}
-        </div>
-      )}
 
       <main className="main-split">
         <section className="panel panel--world">

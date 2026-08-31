@@ -3,7 +3,7 @@ import { pickNumeric } from './valueBinding'
 
 // Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
 // doorCondition holds), G = goal, S = start (rendered as empty).
-function parseGrid(rows: string[]): TileKind[][] {
+export function parseGrid(rows: string[]): TileKind[][] {
   const map: Record<string, TileKind> = {
     '#': 'wall',
     '.': 'empty',
@@ -84,16 +84,12 @@ export const LEVELS: LevelDefinition[] = [
     visualScene: 'robot-wake',
     title: 'Ge roboten ett namn',
     concept: 'print() och strängar',
-    objective: 'Väck roboten genom att ge den ett namn och hälsa på den.',
-    intro: [
-      'Du har hittat en avstängd robot i en övergiven anläggning. Innan resan börjar behöver den ett namn.',
-      'En variabel är ett namn som pekar på ett värde. print() skriver ut det i terminalen.'
-    ],
+    objective: 'Skapa en variabel (till exempel name) med ett namn som text, och använd print() för att hälsa på roboten.',
     ...NO_GRID,
     availableCommands: ['variabel = "text" (str)', 'print()'],
-    starterCode: '# Ge roboten ett namn och hälsa på den.\n',
+    starterCode: 'name =  # skriv ett namn som text här\n\n# Använd print() för att hälsa på roboten.\n',
     hints: [
-      'Skapa en variabel, till exempel name = "NOVA".',
+      'Fyll i ett namn som text efter likhetstecknet, till exempel "NOVA".',
       'Använd print() för att skriva ut hälsningen.',
       'Prova:\nname = "NOVA"\nprint(name)'
     ],
@@ -104,25 +100,41 @@ export const LEVELS: LevelDefinition[] = [
   {
     id: 2,
     world: 'kontrollcentralen',
+    type: 'scene',
+    visualScene: 'backpack',
+    title: 'Packa ryggsäcken',
+    concept: 'variabler',
+    objective: 'Skapa två variabler med exakt dessa namn: apples satt till 3, och water satt till 2.',
+    ...NO_GRID,
+    availableCommands: ['variabel = tal (int)'],
+    starterCode: 'apples =  # hur många äpplen?\nwater =  # hur många vattenflaskor?\n',
+    hints: [
+      'Fyll i värdet efter likhetstecknet för varje variabel.',
+      'apples ska bli 3, water ska bli 2.',
+      'Prova:\napples = 3\nwater = 2'
+    ],
+    successTip: 'En variabel är som en namngiven låda: apples pekar på talet 3, water pekar på talet 2.',
+    showVariables: true,
+    successCheck: (ctx) => ctx.variables.apples === 3 && ctx.variables.water === 2
+  },
+  {
+    id: 3,
+    world: 'kontrollcentralen',
     type: 'robot',
     title: 'Rum 1 — Energilåset',
     concept: 'addition (+)',
-    objective: 'Räkna ut energin och ta dig igenom den låsta dörren.',
-    intro: [
-      'Det första rummet blockeras av en energidörr. Den kräver exakt 50 energienheter för att låsa upp.',
-      'Två celler i väggen visar 20 och 30. Dörren reagerar direkt när din uträkning stämmer — innan roboten ens rört sig.'
-    ],
+    objective: 'Spara summan av cell_a och cell_b i en variabel som heter exakt energy — dörren läser av den och öppnas automatiskt.',
     width: 8,
     height: 3,
     tileGrid: parseGrid(['########', '#S..D.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['+', 'move()'],
-    starterCode:
-      'cell_a = 20\ncell_b = 30\n\n# Räkna ut hur mycket energi de två cellerna ger tillsammans.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
+    starterCode: 'cell_a = 20\ncell_b = 30\n\nenergy =  # hur mycket energi ger cellerna tillsammans?\n\nmove()\n',
     hints: [
-      'Roboten går redan rätt väg — dörren släpper bara igenom om energy stämmer.',
-      '+ adderar cell_a och cell_b.',
-      'Prova:\nenergy = cell_a + cell_b'
+      'Roboten kommer inte hela vägen fram än – räkna ut hur många steg det faktiskt är till dörren och sedan till målet.',
+      '+ adderar två tal i Python: cell_a + cell_b.',
+      'Fyll i uträkningen efter energy =.',
+      'Prova:\nenergy = cell_a + cell_b\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
     successTip: 'Dörren lyssnar på variabeln energy hela tiden den körs — du ser den öppnas i samma ögonblick värdet blir rätt.',
     showConsole: true,
@@ -131,27 +143,24 @@ export const LEVELS: LevelDefinition[] = [
     successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['energy']) === 50
   },
   {
-    id: 3,
+    id: 4,
     world: 'kontrollcentralen',
     type: 'robot',
     title: 'Rum 2 — Säkerhetsdörren',
     concept: 'subtraktion (-)',
-    objective: 'Räkna ut hur mycket energi som blir kvar, och lås upp dörren.',
-    intro: [
-      'Nästa dörr kräver exakt 65 energienheter kvar. Systemet har 100, och dörren kostar 35 att öppna.',
-      '- drar bort ett värde från ett annat, precis som i matematiken.'
-    ],
+    objective: 'Spara resultatet i en variabel som heter exakt remaining_energy — dörren öppnas automatiskt när den stämmer.',
     width: 8,
     height: 3,
     tileGrid: parseGrid(['########', '#S..D.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['-', 'move()'],
     starterCode:
-      'total_energy = 100\ndoor_cost = 35\n\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
+      'total_energy = 100\ndoor_cost = 35\n\nremaining_energy =  # hur mycket energi är kvar?\n\nmove()\nmove()',
     hints: [
-      'total_energy är vad systemet har, door_cost är vad dörren kostar.',
+      'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
       '- drar bort ett värde från ett annat: total_energy - door_cost.',
-      'Prova:\nremaining_energy = total_energy - door_cost'
+      'Fyll i uträkningen efter remaining_energy =.',
+      'Prova:\nremaining_energy = total_energy - door_cost\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
     successTip: 'Samma variabler kan kombineras med olika räknesätt beroende på vad de betyder i sammanhanget.',
     showConsole: true,
@@ -160,27 +169,24 @@ export const LEVELS: LevelDefinition[] = [
     successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy']) === 65
   },
   {
-    id: 4,
+    id: 5,
     world: 'kontrollcentralen',
     type: 'robot',
     title: 'Rum 3 — Bron',
     concept: 'multiplikation (*)',
-    objective: 'Räkna ut hur lång bron blir så att byggsystemet kan lägga ut den.',
-    intro: [
-      'Golvet framför dig saknas — en klyfta delar rummet i två. Byggsystemet lägger ut brodelar automatiskt så fort det vet totallängden.',
-      'Varje del är 2 meter, och du behöver 4 delar. * multiplicerar två tal.'
-    ],
+    objective: 'Spara resultatet i en variabel som heter exakt bridge_length — bron läggs ut automatiskt när den stämmer.',
     width: 8,
     height: 3,
     tileGrid: parseGrid(['########', '#S.DD.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['*', 'move()'],
     starterCode:
-      'part_length = 2\nparts_needed = 4\n\n# Räkna ut hur lång bron blir totalt.\n\nmove()\nmove()\nmove()\nmove()\nmove()\n',
+      'part_length = 2\nparts_needed = 4\n\nbridge_length =  # hur lång blir bron totalt?\n\nmove()',
     hints: [
-      'part_length är längden på en del, parts_needed är hur många som behövs.',
+      'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
       '* multiplicerar: part_length * parts_needed.',
-      'Prova:\nbridge_length = part_length * parts_needed'
+      'Fyll i uträkningen efter bridge_length =.',
+      'Prova:\nbridge_length = part_length * parts_needed\n\nmove()\nmove()\nmove()\nmove()\nmove()'
     ],
     successTip: 'Multiplikation är ett snabbt sätt att räkna ihop flera lika stora mängder, till exempel brodelar.',
     showConsole: true,
@@ -189,47 +195,19 @@ export const LEVELS: LevelDefinition[] = [
     successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['bridge_length']) === 8
   },
   {
-    id: 5,
-    world: 'kontrollcentralen',
-    type: 'scene',
-    visualScene: 'backpack',
-    title: 'Packa ryggsäcken',
-    concept: 'variabler',
-    objective: 'Packa ryggsäcken med 3 äpplen och 2 vattenflaskor.',
-    intro: [
-      'Innan roboten går vidare in i anläggningen behöver den packas.',
-      'En variabel är ett namn som pekar på ett värde — namnet kan vara vad du vill, och värdet representerar något i spelvärlden.'
-    ],
-    ...NO_GRID,
-    availableCommands: ['variabel = tal (int)'],
-    starterCode: '# Skapa två variabler: apples och water.\n',
-    hints: [
-      'En variabel skapas genom att skriva ett namn, ett likhetstecken, och ett värde: namn = värde.',
-      'Skapa apples med värdet 3, och water med värdet 2.',
-      'Prova:\napples = 3\nwater = 2'
-    ],
-    successTip: 'En variabel är som en namngiven låda: apples pekar på talet 3, water pekar på talet 2.',
-    showVariables: true,
-    successCheck: (ctx) => ctx.variables.apples === 3 && ctx.variables.water === 2
-  },
-  {
     id: 6,
     world: 'kontrollcentralen',
     type: 'scene',
     visualScene: 'rocket',
     title: 'Bygg raketen',
     concept: 'variabler + operatorer',
-    objective: 'Räkna ut den totala mängden bränsle i raketens tre tankar.',
-    intro: [
-      'Raketen har tre bränsletankar. Varje tank rymmer 20 enheter bränsle.',
-      'Nu kombinerar du det du lärt dig: variabler och räkneoperatorer i samma program.'
-    ],
+    objective: 'Spara resultatet i en variabel som heter exakt total_fuel.',
     ...NO_GRID,
     availableCommands: ['variabler', '*', 'print()'],
     starterCode: 'fuel = 20\nfuel_tanks = 3\n\n# Räkna ut den totala mängden bränsle.\n',
     hints: [
-      'fuel är bränsle per tank, fuel_tanks är antalet tankar.',
-      'Multiplicera de två variablerna för att få totalen.',
+      'Multiplicera de två variablerna: fuel * fuel_tanks.',
+      'Spara resultatet i en variabel som heter exakt total_fuel.',
       'Prova:\ntotal_fuel = fuel * fuel_tanks\nprint(total_fuel)'
     ],
     successTip: 'Variabler kan användas i beräkningar precis som vanliga tal, och resultatet kan sparas i en ny variabel.',
@@ -243,23 +221,20 @@ export const LEVELS: LevelDefinition[] = [
     type: 'robot',
     title: 'Robotens första uppdrag',
     concept: 'print, +, -, * och variabler tillsammans',
-    objective: 'Räkna ut hur mycket energi som är kvar, lås upp dörren och ta dig till utgången.',
-    intro: [
-      'Dags för det första riktiga uppdraget. Roboten börjar med 100 energienheter.',
-      'På vägen ut väntar en låst dörr, och sedan en kort sväng till utgången.'
-    ],
+    objective:
+      'Spara resultatet i en variabel som heter exakt remaining_energy — dörren öppnas automatiskt, och sedan tar du dig till utgången.',
     width: 6,
     height: 5,
     tileGrid: parseGrid(['######', '#S.D##', '###.##', '###G##', '######']),
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['variabler', '+', '-', '*', 'move()', 'turn_right()'],
     starterCode:
-      'start_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\nmove()\n',
+      'start_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\n',
     hints: [
-      'Dörren kräver att remaining_energy stämmer exakt, annars förblir den låst.',
       'Dörren kostar 20 energi. De två rörelserna kostar 15 energi var, alltså 15 * 2 totalt.',
-      'Dra bort båda kostnaderna från start_energy.',
-      'Prova:\nremaining_energy = start_energy - 20 - 15 * 2'
+      'Dra bort båda kostnaderna från start_energy, och spara resultatet i en variabel som heter exakt remaining_energy.',
+      'Roboten kommer inte riktigt fram till utgången än – den behöver ett steg till på slutet.',
+      'Prova:\nremaining_energy = start_energy - 20 - 15 * 2\n\nmove()\nmove()\nturn_right()\nmove()\nmove()'
     ],
     successTip: 'Du kombinerade print, +/-/*, och variabler i samma program – det är precis så riktiga Python-program byggs.',
     showConsole: true,

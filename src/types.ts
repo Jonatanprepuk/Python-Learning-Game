@@ -41,7 +41,6 @@ export interface LevelDefinition {
   title: string
   concept: string
   objective: string
-  intro: string[]
   width: number
   height: number
   /** Row-major grid of tile kinds, tileGrid[y][x] */
