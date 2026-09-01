@@ -19,8 +19,14 @@ import { CompletionModal } from './ui/CompletionModal'
 import { HomePage } from './ui/HomePage'
 import { Playground } from './ui/Playground'
 
+// BASE_URL is '/' in dev but '/Python-Learning-Game/' when built for the
+// GitHub Pages project page (see vite.config.ts) — routes must be resolved
+// under that prefix or a direct load / refresh of /playground 404s.
+const PLAYGROUND_PATH = `${import.meta.env.BASE_URL}playground`.replace(/\/+$/, '')
+const HOME_PATH = import.meta.env.BASE_URL
+
 function pathToRoute(pathname: string): 'app' | 'playground' {
-  return pathname.replace(/\/+$/, '') === '/playground' ? 'playground' : 'app'
+  return pathname.replace(/\/+$/, '') === PLAYGROUND_PATH ? 'playground' : 'app'
 }
 
 /**
@@ -39,12 +45,12 @@ export default function App() {
   }, [])
 
   const goToPlayground = () => {
-    window.history.pushState(null, '', '/playground')
+    window.history.pushState(null, '', PLAYGROUND_PATH)
     setRoute('playground')
   }
 
   const leavePlayground = () => {
-    window.history.pushState(null, '', '/')
+    window.history.pushState(null, '', HOME_PATH)
     setRoute('app')
   }
 

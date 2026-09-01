@@ -66,7 +66,14 @@ code {
 /* ---------- App shell ---------- */
 
 .app {
-  min-height: 100vh;
+  /* A definite (not just minimum) height is what lets .main-split's flex
+     child actually stop growing with its content below — without it,
+     nothing in the flex/grid chain has a real size to shrink against, so a
+     long script just grows the whole page instead of scrolling inside the
+     editor. overflow-y is a safety net for the rare case where header +
+     objective + footer content alone is taller than the viewport. */
+  height: 100vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -441,6 +448,11 @@ code {
   min-height: 480px;
 }
 
+/* Playground: robot view toggled off, editor takes the full width. */
+.main-split--single {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-soft);
@@ -448,6 +460,10 @@ code {
   display: flex;
   flex-direction: column;
   position: relative;
+  /* Without this, a grid item's default min-height:auto lets its content
+     (e.g. a long script in the code editor) push the whole row taller
+     instead of scrolling inside the panel's own bounded height. */
+  min-height: 0;
 }
 
 .panel--world {
@@ -461,6 +477,14 @@ code {
 .code-editor {
   flex: 1;
   min-height: 0;
+}
+/* @uiw/react-codemirror renders its own unstyled wrapper div directly
+   inside .code-editor, above .cm-editor. That div has no height of its
+   own, so .cm-editor's height:100% (and .cm-scroller's, in turn) resolves
+   to auto instead of a real pixel value — without this, the editor grows
+   to fit all the code instead of scrolling internally. */
+.code-editor > div {
+  height: 100%;
 }
 .code-editor .cm-editor {
   height: 100%;

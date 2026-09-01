@@ -61,6 +61,7 @@ interface PlaygroundProps {
 export function Playground({ onBack }: PlaygroundProps) {
   const [grid, setGrid] = useState<TileKind[][]>(BASE_GRID)
   const [tool, setTool] = useState<Tool>('wall')
+  const [showWorld, setShowWorld] = useState(true)
 
   // level.id stays -1 across edits, so useLevelSession never wipes the
   // player's code/console just because the room layout changed.
@@ -98,6 +99,9 @@ export function Playground({ onBack }: PlaygroundProps) {
         <button className="btn btn--ghost btn--small app-header__home" onClick={onBack}>
           ← Hem
         </button>
+        <button className="btn btn--ghost btn--small" onClick={() => setShowWorld((v) => !v)}>
+          {showWorld ? 'Dölj roboten' : 'Visa roboten'}
+        </button>
       </header>
 
       <div className="objective-panel">
@@ -108,33 +112,37 @@ export function Playground({ onBack }: PlaygroundProps) {
         </p>
       </div>
 
-      <div className="playground-toolbar">
-        <span className="playground-toolbar__label">Bygg rummet:</span>
-        {(Object.keys(TOOL_LABEL) as Tool[]).map((t) => (
-          <button
-            key={t}
-            className={`btn btn--small${tool === t ? ' btn--primary' : ' btn--ghost'}`}
-            onClick={() => setTool(t)}
-          >
-            {TOOL_LABEL[t]}
-          </button>
-        ))}
-        <span className="playground-toolbar__hint">Klicka i rummet för att måla ut {TOOL_LABEL[tool].toLowerCase()}</span>
-      </div>
+      {showWorld && (
+        <div className="playground-toolbar">
+          <span className="playground-toolbar__label">Bygg rummet:</span>
+          {(Object.keys(TOOL_LABEL) as Tool[]).map((t) => (
+            <button
+              key={t}
+              className={`btn btn--small${tool === t ? ' btn--primary' : ' btn--ghost'}`}
+              onClick={() => setTool(t)}
+            >
+              {TOOL_LABEL[t]}
+            </button>
+          ))}
+          <span className="playground-toolbar__hint">Klicka i rummet för att måla ut {TOOL_LABEL[tool].toLowerCase()}</span>
+        </div>
+      )}
 
-      <main className="main-split">
-        <section className="panel panel--world">
-          <GameWorld
-            level={level}
-            worldState={session.worldState}
-            lastStep={session.lastStep}
-            editable
-            onTileClick={handleTileClick}
-          />
-          {session.lastActionNote && session.phase === 'running' && (
-            <div className="world-note">{session.lastActionNote}</div>
-          )}
-        </section>
+      <main className={`main-split${showWorld ? '' : ' main-split--single'}`}>
+        {showWorld && (
+          <section className="panel panel--world">
+            <GameWorld
+              level={level}
+              worldState={session.worldState}
+              lastStep={session.lastStep}
+              editable
+              onTileClick={handleTileClick}
+            />
+            {session.lastActionNote && session.phase === 'running' && (
+              <div className="world-note">{session.lastActionNote}</div>
+            )}
+          </section>
+        )}
 
         <section className="panel panel--editor">
           <CodeEditor
