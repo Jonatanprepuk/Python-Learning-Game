@@ -87,7 +87,8 @@ export const LEVELS: LevelDefinition[] = [
     objective: 'Skapa en variabel (till exempel name) med ett namn som text, och använd print() för att hälsa på roboten.',
     ...NO_GRID,
     availableCommands: ['variabel = "text" (str)', 'print()'],
-    starterCode: 'name =  # skriv ett namn som text här\n\n# Använd print() för att hälsa på roboten.\n',
+    starterCode:
+      '# Skapa en variabel med ett namn, och hälsa med print().\n\nname =  # skriv ett namn som text här\n',
     hints: [
       'Fyll i ett namn som text efter likhetstecknet, till exempel "NOVA".',
       'Använd print() för att skriva ut hälsningen.',
@@ -107,7 +108,8 @@ export const LEVELS: LevelDefinition[] = [
     objective: 'Skapa två variabler med exakt dessa namn: apples satt till 3, och water satt till 2.',
     ...NO_GRID,
     availableCommands: ['variabel = tal (int)'],
-    starterCode: 'apples =  # hur många äpplen?\nwater =  # hur många vattenflaskor?\n',
+    starterCode:
+      '# Skapa variablerna apples (3) och water (2).\n\napples =  # hur många äpplen?\nwater =  # hur många vattenflaskor?\n',
     hints: [
       'Fyll i värdet efter likhetstecknet för varje variabel.',
       'apples ska bli 3, water ska bli 2.',
@@ -129,7 +131,8 @@ export const LEVELS: LevelDefinition[] = [
     tileGrid: parseGrid(['########', '#S..D.G#', '########']),
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['+', 'move()'],
-    starterCode: 'cell_a = 20\ncell_b = 30\n\nenergy =  # hur mycket energi ger cellerna tillsammans?\n\nmove()\n',
+    starterCode:
+      '# Räkna ut energin cellerna ger tillsammans, spara i energy.\n\ncell_a = 20\ncell_b = 30\n\nenergy =  # hur mycket energi ger cellerna tillsammans?\n\nmove()\n',
     hints: [
       'Roboten kommer inte hela vägen fram än – räkna ut hur många steg det faktiskt är till dörren och sedan till målet.',
       '+ adderar två tal i Python: cell_a + cell_b.',
@@ -155,7 +158,7 @@ export const LEVELS: LevelDefinition[] = [
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['-', 'move()'],
     starterCode:
-      'total_energy = 100\ndoor_cost = 35\n\nremaining_energy =  # hur mycket energi är kvar?\n\nmove()\nmove()',
+      '# Räkna ut hur mycket energi som är kvar, spara i remaining_energy.\n\ntotal_energy = 100\ndoor_cost = 35\n\nremaining_energy =  # hur mycket energi är kvar?\n\nmove()\nmove()\nmove()\nmove()',
     hints: [
       'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
       '- drar bort ett värde från ett annat: total_energy - door_cost.',
@@ -181,7 +184,7 @@ export const LEVELS: LevelDefinition[] = [
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['*', 'move()'],
     starterCode:
-      'part_length = 2\nparts_needed = 4\n\nbridge_length =  # hur lång blir bron totalt?\n\nmove()',
+      '# Räkna ut hur lång bron blir, spara i bridge_length.\n\npart_length = 2\nparts_needed = 4\n\nbridge_length =  # hur lång blir bron totalt?\n\nmove()\nmove()\nmove()\nmove()',
     hints: [
       'Roboten kommer inte riktigt fram än – räkna ut hur många steg det faktiskt är till målet.',
       '* multiplicerar: part_length * parts_needed.',
@@ -204,7 +207,8 @@ export const LEVELS: LevelDefinition[] = [
     objective: 'Spara resultatet i en variabel som heter exakt total_fuel.',
     ...NO_GRID,
     availableCommands: ['variabler', '*', 'print()'],
-    starterCode: 'fuel = 20\nfuel_tanks = 3\n\n# Räkna ut den totala mängden bränsle.\n',
+    starterCode:
+      '# Räkna ut totala mängden bränsle, spara i total_fuel.\n\nfuel = 20\nfuel_tanks = 3\n',
     hints: [
       'Multiplicera de två variablerna: fuel * fuel_tanks.',
       'Spara resultatet i en variabel som heter exakt total_fuel.',
@@ -229,7 +233,7 @@ export const LEVELS: LevelDefinition[] = [
     playerStart: { x: 1, y: 1, direction: 'right' },
     availableCommands: ['variabler', '+', '-', '*', 'move()', 'turn_right()'],
     starterCode:
-      'start_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\n',
+      '# Räkna ut kvarvarande energi (remaining_energy), ta dig till utgången.\n\nstart_energy = 100\n\n# Dörren kostar 20 energi.\n# Roboten gör två rörelser på 15 energi var.\n# Räkna ut hur mycket energi som är kvar.\n\nmove()\nmove()\nturn_right()\nmove()\n',
     hints: [
       'Dörren kostar 20 energi. De två rörelserna kostar 15 energi var, alltså 15 * 2 totalt.',
       'Dra bort båda kostnaderna från start_energy, och spara resultatet i en variabel som heter exakt remaining_energy.',
