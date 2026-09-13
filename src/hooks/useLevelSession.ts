@@ -93,7 +93,7 @@ export function useLevelSession(level: LevelDefinition) {
   }, [level, stop])
 
   const finishRun = useCallback(
-    (steps: TraceStep[], finalVars: Record<string, SnapshotValue> | undefined) => {
+    (steps: TraceStep[], finalVars: Record<string, SnapshotValue> | undefined, hasIfStatement?: boolean) => {
       const finalState = steps.length ? steps[steps.length - 1].state : createInitialState(level.tileGrid, level.playerStart)
       const variables = finalVars ?? {}
       let won: boolean
@@ -102,6 +102,7 @@ export function useLevelSession(level: LevelDefinition) {
         // that the robot actually reached the goal (e.g. a door-unlock room).
         won =
           level.successCheck({
+            hasIfStatement,
             variables,
             consoleLines: consoleRef.current,
             ranWithoutError: true,
@@ -203,7 +204,7 @@ export function useLevelSession(level: LevelDefinition) {
         return
       }
 
-      playTrace(result.steps, token, () => finishRun(result.steps, result.finalVariables))
+      playTrace(result.steps, token, () => finishRun(result.steps, result.finalVariables, result.hasIfStatement))
     },
     [code, level, run, playTrace, finishRun]
   )

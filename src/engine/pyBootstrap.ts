@@ -130,3 +130,8 @@ export function buildSource(userCode: string): string {
  * the variable inspector / dashboard / inventory / dictionary / class panels.
  */
 export const SNAPSHOT_SOURCE = `__json.dumps(__snapshot_globals(globals()))`
+
+/** Parse actual Python syntax so comments and strings cannot count as an if. */
+export function buildIfCheck(userCode: string): string {
+  return `import ast as __ast\nany(isinstance(node, __ast.If) for node in __ast.walk(__ast.parse(${JSON.stringify(userCode)})))`
+}

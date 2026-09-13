@@ -1,5 +1,6 @@
 import type { LevelDefinition, TileKind } from '../types'
 import { pickNumeric } from './valueBinding'
+import { SECURITY_LEVELS } from './securityLevels'
 
 // Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
 // doorCondition holds), G = goal, S = start (rendered as empty).
@@ -41,8 +42,8 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'sakerhetssystemet',
     title: 'Säkerhetssystemet',
-    tagline: 'Logik och villkor.',
-    status: 'soon'
+    tagline: '20 uppdrag med if-satser, jämförelser och beräkningar.',
+    status: 'available'
   },
   {
     id: 'produktionshallen',
@@ -245,7 +246,8 @@ export const LEVELS: LevelDefinition[] = [
     showVariables: true,
     doorCondition: { variable: 'remaining_energy', op: '==', value: 50 },
     successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy', 'energy_left']) === 50
-  }
+  },
+  ...SECURITY_LEVELS
 ]
 
 export function getLevel(id: number): LevelDefinition | undefined {

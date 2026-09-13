@@ -27,6 +27,7 @@ export type SnapshotValue =
   | { __class__: string; [attr: string]: SnapshotValue | string }
 
 export interface SuccessContext {
+  hasIfStatement?: boolean
   variables: Record<string, SnapshotValue>
   consoleLines: string[]
   ranWithoutError: boolean
@@ -121,6 +122,7 @@ export interface FriendlyError {
 }
 
 export interface RunResult {
+  hasIfStatement?: boolean
   ok: boolean
   steps: TraceStep[]
   error?: FriendlyError

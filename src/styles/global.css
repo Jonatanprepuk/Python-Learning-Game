@@ -292,6 +292,7 @@ code {
 
 .level-nav__row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 

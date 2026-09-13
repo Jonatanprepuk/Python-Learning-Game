@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { SNAPSHOT_SOURCE, buildSource } from './pyBootstrap'
+import { SNAPSHOT_SOURCE, buildSource, buildIfCheck } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
@@ -50,6 +50,7 @@ async function init() {
 }
 
 interface RunOutcome {
+  hasIfStatement?: boolean
   steps: TraceStep[]
   finalVariables?: Record<string, SnapshotValue>
   awaitingInput?: { prompt: string }
@@ -201,6 +202,7 @@ function runUserCode(
       pushStep('state', rawLine, undefined, undefined, undefined, undefined, liveVariables)
     })
 
+    const hasIfStatement = Boolean(pyodide.runPython(buildIfCheck(code), { globals }))
     const source = buildSource(code)
     try {
       pyodide.runPython(source, { globals })
@@ -216,7 +218,7 @@ function runUserCode(
 
     const snapshotJson = pyodide.runPython(SNAPSHOT_SOURCE, { globals })
     const finalVariables = JSON.parse(snapshotJson) as Record<string, SnapshotValue>
-    return { steps, finalVariables }
+    return { steps, finalVariables, hasIfStatement }
   } finally {
     globals.destroy()
   }
@@ -228,14 +230,14 @@ async function handleRun(req: WorkerRequest) {
     return
   }
   try {
-    const { steps, finalVariables, awaitingInput } = runUserCode(
+    const { steps, finalVariables, awaitingInput, hasIfStatement } = runUserCode(
       req.code,
       req.level.tileGrid,
       req.level.playerStart,
       req.inputs ?? [],
       req.level.doorCondition
     )
-    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput } })
+    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = translateError(message)
