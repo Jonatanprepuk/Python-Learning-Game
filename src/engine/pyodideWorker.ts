@@ -3,10 +3,12 @@ import { SNAPSHOT_SOURCE, buildSource, buildIfCheck } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
+  applyActivate,
   applyMove,
   applyTurnLeft,
   applyTurnRight,
   createInitialState,
+  evaluateDoorCondition,
   queryAtGoal,
   queryCanMove,
   queryResourceAhead,
@@ -56,32 +58,15 @@ interface RunOutcome {
   awaitingInput?: { prompt: string }
 }
 
-function evaluateDoorCondition(condition: DoorCondition | undefined, variables: Record<string, SnapshotValue>): boolean {
-  if (!condition) return false
-  const v = variables[condition.variable]
-  if (typeof v !== 'number') return false
-  switch (condition.op) {
-    case '==':
-      return v === condition.value
-    case '>=':
-      return v >= condition.value
-    case '<=':
-      return v <= condition.value
-    case '>':
-      return v > condition.value
-    case '<':
-      return v < condition.value
-  }
-}
-
 function runUserCode(
   code: string,
   grid: TileKind[][],
   playerStart: { x: number; y: number; direction: import('../types').Direction },
   inputs: string[],
-  doorCondition: DoorCondition | undefined
+  doorCondition: DoorCondition | undefined,
+  mechanisms?: import('../types').Mechanism[]
 ): RunOutcome {
-  let state: SimWorldState = createInitialState(grid, playerStart)
+  let state: SimWorldState = createInitialState(grid, playerStart, mechanisms)
   const steps: TraceStep[] = []
   let stepCount = 0
   let inputIndex = 0
@@ -128,6 +113,11 @@ function runUserCode(
   const globals: any = pyodide.toPy({})
 
   try {
+    globals.set('__step_activate', (rawLine: number) => {
+      guard()
+      state = applyActivate(state, liveVariables)
+      pushStep('activate', rawLine)
+    })
     globals.set('__step_move', (rawLine: number) => {
       guard()
       state = applyMove(state, grid, doorsOpenNow())
@@ -235,7 +225,8 @@ async function handleRun(req: WorkerRequest) {
       req.level.tileGrid,
       req.level.playerStart,
       req.inputs ?? [],
-      req.level.doorCondition
+      req.level.doorCondition,
+      req.level.mechanisms
     )
     post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement } })
   } catch (err) {

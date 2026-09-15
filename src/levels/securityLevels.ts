@@ -1,4 +1,5 @@
-import type { LevelDefinition, SnapshotValue } from '../types'
+import type { LevelDefinition } from '../types'
+import { buildSecurityMission } from './securityMaps'
 
 interface Exercise {
   title: string
@@ -6,7 +7,7 @@ interface Exercise {
   objective: string
   setup: string
   solution: string
-  expected: Record<string, SnapshotValue>
+  expected: Record<string, number | string | boolean>
   hint: string
   tip: string
 }
@@ -174,22 +175,20 @@ const exercises: Exercise[] = [
   }
 ]
 
-export const SECURITY_LEVELS: LevelDefinition[] = exercises.map((exercise, index) => ({
-  id: index + 8,
-  world: 'sakerhetssystemet',
-  type: 'dashboard',
-  title: exercise.title,
-  concept: exercise.concept,
-  objective: `${exercise.objective} Använd if, behåll startvärdena och använd variabelnamnen exakt som de står.`,
-  width: 1,
-  height: 1,
-  tileGrid: [['empty']],
-  playerStart: { x: 0, y: 0, direction: 'right' },
-  availableCommands: ['if villkor:', '    indraget kodblock', ...(index >= 8 ? ['else:'] : []), ...(index >= 16 ? ['elif villkor:'] : []), exercise.concept],
-  starterCode: `# Säkerhetssystemet · uppdrag ${index + 1}/20\n${exercise.setup}\n\n# Skriv din if-sats här.\n`,
-  hints: [exercise.hint, 'Använd kolon efter villkoret och fyra mellanslag för varje indragsnivå. True och False börjar med stor bokstav.', `Prova:\n${exercise.setup}\n\n${exercise.solution}`],
-  successTip: exercise.tip,
-  showVariables: true,
-  watchVariables: Object.keys(exercise.expected),
-  successCheck: (ctx) => ctx.ranWithoutError && ctx.hasIfStatement === true && Object.entries(exercise.expected).every(([name, value]) => ctx.variables[name] === value)
-}))
+export const SECURITY_LEVELS: LevelDefinition[] = exercises.map((exercise, index) => {
+  const mission = buildSecurityMission(index, exercise.solution, exercise.expected)
+  return {
+    id: index + 8, world: 'sakerhetssystemet', type: 'robot',
+    title: `Rum ${index + 1} — ${exercise.title}`,
+    concept: exercise.concept,
+    objective: `${mission.story} ${exercise.objective} Behåll startvärdena. Skriv själv robotens rörelser. Stå på bokstavspanelen och använd activate() i rätt gren innan du passerar hindret. Nå sedan den gröna målrutan.`,
+    width: mission.width, height: mission.height, tileGrid: mission.tileGrid,
+    playerStart: mission.playerStart, mechanisms: mission.mechanisms,
+    availableCommands: ['move()', 'turn_left()', 'turn_right()', 'activate()', 'if villkor:', ...(index >= 8 ? ['else:'] : []), ...(index >= 16 ? ['elif villkor:'] : [])],
+    starterCode: `# Rum ${index + 1}: ${exercise.title}\n${exercise.setup}\n\n# 1. Gå till panel A med move() och svängar.\n\n# 2. Skriv kontrollen. Använd activate() på panelen.\n# Lägg rörelser genom hindret i rätt if/else-gren.\n\n# 3. Fortsätt till nästa panel eller den gröna målrutan.\n`,
+    hints: [exercise.hint, 'Ett move() går en ruta i pilens riktning. turn_left() och turn_right() vrider roboten ett kvarts varv. Bokstaven på en panel visar vilket hinder den styr.', 'activate() måste köras på panelrutan efter att rätt variabler har satts. Lägg aktivering och rörelser i samma gren. Flera paneler måste besökas i ordning.', `Prova:\n${exercise.setup}\n${mission.program}`],
+    successTip: `${exercise.tip} Du har styrt roboten förbi hindren och fram till målet.`,
+    showVariables: true, watchVariables: Object.keys(exercise.expected),
+    successCheck: ctx => ctx.ranWithoutError && ctx.hasIfStatement === true && Object.entries(exercise.expected).every(([name, value]) => ctx.variables[name] === value)
+  }
+})

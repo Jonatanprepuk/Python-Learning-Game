@@ -8,11 +8,14 @@ import json as __json
 
 __RESERVED_NAMES = {
     'move', 'turn_left', 'turn_right', 'collect', 'can_move',
-    'resource_ahead', 'at_goal', 'print', 'input'
+    'resource_ahead', 'at_goal', 'print', 'input', 'activate'
 }
 
 def move():
     return __step_move(__sys._getframe(1).f_lineno)
+
+def activate():
+    return __step_activate(__sys._getframe(1).f_lineno)
 
 def turn_left():
     return __step_turn_left(__sys._getframe(1).f_lineno)

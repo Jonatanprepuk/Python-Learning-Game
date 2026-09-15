@@ -253,7 +253,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             highlightedLine={session.highlightedLine}
             readOnly={session.phase === 'running' || session.phase === 'awaiting_input'}
           />
-          {level.type === 'scene' && level.showVariables && (
+          {(level.type === 'scene' || (level.type === 'robot' && level.world === 'sakerhetssystemet')) && level.showVariables && (
             <VariableInspector variables={session.currentVariables} compact />
           )}
           {level.showConsole && (
@@ -270,10 +270,10 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          {level.type === 'robot'
+          {level.world === 'sakerhetssystemet'
+            ? 'Inte klart än. Besök panelrutorna och använd activate() med rätt villkor. Lägg robotens rörelser i rätt gren och nå den gröna målrutan.'
+            : level.type === 'robot'
             ? 'Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.'
-            : level.world === 'sakerhetssystemet'
-              ? 'Inte klart än. Använd en if-sats, behåll startvärdena och kontrollera att alla resultat följer uppdraget.'
               : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.'}
         </div>
       )}

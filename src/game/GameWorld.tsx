@@ -78,14 +78,20 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
             const isCollectedResource = kind === 'resource' && !collectedSet.has(`${x},${y}`)
             const displayKind = isCollectedResource ? 'empty' : kind
             const doorOpen = displayKind === 'door' && worldState.doorsOpen
+            const obstacle = level.mechanisms?.find(m => m.barriers.some(p => p.x === x && p.y === y))
+            const panel = level.mechanisms?.find(m => m.station.x === x && m.station.y === y)
+            const cleared = obstacle && worldState.activated?.includes(obstacle.id)
             return (
               <div
                 key={`${x}-${y}`}
-                className={`tile tile--${displayKind}${doorOpen ? ' tile--door-open' : ''}${
+                title={panel ? `Panel ${panel.id}: ${panel.label} — activate()` : obstacle ? `${obstacle.label}${cleared ? ' — säker' : ' — blockerad'}` : undefined}
+                className={`tile tile--${displayKind}${obstacle ? ` obstacle obstacle--${obstacle.kind}${cleared ? ' obstacle--clear' : ''}` : ''}${doorOpen ? ' tile--door-open' : ''}${
                   editable ? ' tile--editable' : ''
                 }`}
                 onClick={editable ? () => onTileClick?.(x, y) : undefined}
               >
+                {panel && <span className={`station${worldState.activated?.includes(panel.id) ? ' station--active' : ''}`}>{panel.id}</span>}
+                {obstacle && <span className="obstacle__symbol">{cleared ? '✓' : ({ door: '▥', laser: '╳', heat: '≋', water: '≈', bridge: '═', lift: '↕', charger: 'ϟ' })[obstacle.kind]}</span>}
                 {displayKind === 'resource' && <span className="tile__resource" />}
                 {displayKind === 'goal' && <span className="tile__goal" />}
                 {displayKind === 'wall' && <span className="tile__wall" />}
@@ -124,6 +130,12 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
       </div>
 
       <div className="world-hud">
+        {level.mechanisms && <div className="mechanism-legend">
+          <span>Panelruta → activate() · Grönt mål = utgång</span>
+          {level.mechanisms.map(m => <span key={m.id} className={`mechanism-key mechanism-key--${m.kind}`}>
+            {worldState.activated?.includes(m.id) ? '✓' : m.id} · {m.label}
+          </span>)}
+        </div>}
         {worldState.totalResources > 0 && (
           <div className="hud-chip">
             <span className="hud-chip__icon" />

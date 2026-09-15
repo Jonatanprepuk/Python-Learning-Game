@@ -6,6 +6,7 @@ const RUN_TIMEOUT_MS = 10000
 export type RunnerStatus = 'loading' | 'ready' | 'error'
 
 interface RunArgs {
+  mechanisms?: import('../types').Mechanism[]
   code: string
   tileGrid: TileKind[][]
   playerStart: { x: number; y: number; direction: Direction }
@@ -102,7 +103,7 @@ export function usePyodideRunner() {
           type: 'run',
           code: args.code,
           inputs: args.inputs,
-          level: { tileGrid: args.tileGrid, playerStart: args.playerStart, doorCondition: args.doorCondition }
+          level: { tileGrid: args.tileGrid, playerStart: args.playerStart, doorCondition: args.doorCondition, mechanisms: args.mechanisms }
         }
         worker.postMessage(req)
       })
