@@ -210,7 +210,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
         </button>
         <nav className="level-nav">
           {currentWorldGroup && (
-            <div className="level-nav__group" key={currentWorldGroup.world}>
+            <div className="level-nav__group" key={currentWorldGroup.world} data-world={currentWorldGroup.world}>
               <span className="level-nav__world">{currentWorldGroup.title}</span>
               <div className="level-nav__row">
                 {currentWorldGroup.items.map(({ level: l, index: i }, position) => (

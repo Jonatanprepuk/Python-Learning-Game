@@ -350,6 +350,35 @@ code {
   box-shadow: 0 0 7px var(--green-glow);
 }
 
+/* Difficulty colors for world 2; preserve the existing buttons and layout. */
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(-n + 4) {
+  --difficulty-rgb: 74, 222, 128;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 5):nth-child(-n + 8) {
+  --difficulty-rgb: 250, 224, 71;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 9):nth-child(-n + 14) {
+  --difficulty-rgb: 251, 146, 60;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 15):nth-child(-n + 20) {
+  --difficulty-rgb: 248, 113, 113;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item {
+  color: rgb(var(--difficulty-rgb));
+  border-color: rgba(var(--difficulty-rgb), 0.55);
+  background: linear-gradient(180deg, rgba(var(--difficulty-rgb), 0.23), rgba(var(--difficulty-rgb), 0.09));
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item::before {
+  background: rgb(var(--difficulty-rgb));
+  box-shadow: 0 0 7px rgba(var(--difficulty-rgb), 0.3);
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:hover,
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item--active {
+  color: var(--paper);
+  border-color: rgb(var(--difficulty-rgb));
+  background: linear-gradient(180deg, rgba(var(--difficulty-rgb), 0.5), rgba(var(--difficulty-rgb), 0.25));
+}
+
 /* ---------- Objective ---------- */
 
 .objective-panel {

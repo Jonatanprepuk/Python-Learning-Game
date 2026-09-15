@@ -42,7 +42,7 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'sakerhetssystemet',
     title: 'Säkerhetssystemet',
-    tagline: '20 uppdrag med if-satser, jämförelser och beräkningar.',
+    tagline: '20 uppdrag från enkla if till elif, else och nästlade villkor.',
     status: 'available'
   },
   {

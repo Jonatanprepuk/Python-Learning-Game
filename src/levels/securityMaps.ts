@@ -31,30 +31,30 @@ const missions: Mission[] = [
     { approach: 'RRRD', travel: 'RRUUUULL', kind: 'lift', label: 'Hissplattform' }] },
   { story: 'Temperaturen ligger precis på gränsen. Testa vid panel A utan att utlösa larmet. Markera checked, aktivera och följ den smala gångbron.', stages: [
     { approach: 'LUU', travel: 'LLUUURRR', kind: 'bridge', label: 'Tyst gångbro' }] },
-  { story: 'Här delar sig korridoren. Okänd kod ska välja else-grenen och servicevägen uppåt. Den raka huvudvägen ska förbli spärrad.', stages: [
+  { story: 'Här delar sig korridoren. Servicekortet ska välja elif-grenen och servicevägen uppåt. Den raka huvudvägen kräver NOVA.', stages: [
     { approach: 'RRR', travel: 'UUULLL', kind: 'door', label: 'Serviceväg', alternate: { path: 'RRDD', label: 'Huvuddörr', condition: eq('status', 'ÖPPEN') } }] },
   { story: 'Välj patrullvägen uppåt vid panel A när batteriet räcker. Lägg både aktivering och patrullens rörelser i rätt gren.', stages: [
     { approach: 'RRRR', travel: 'UURRRDD', kind: 'door', label: 'Patrullväg', alternate: { path: 'DDLL', label: 'Laddgrind', condition: eq('patrol', 'LADDA') } }] },
   { story: 'En laser skär av kraftgången. Gå till reservpanelen, summera cellerna och aktivera skyddet innan roboten korsar laserfältet.', stages: [
     { approach: 'UUU', travel: 'RRRRDDLLD', kind: 'laser', label: 'Skyddat laserfält' }] },
-  { story: 'Räkna på energin vid korsningen. Med 25 kvar ska else-grenen ta roboten åt vänster till laddstationen, inte upp mot nästa uppdrag.', stages: [
+  { story: 'Räkna på energin vid korsningen. Med 25 kvar ska elif-grenen ta roboten åt vänster till laddstationen. Vägen uppåt kräver minst 30.', stages: [
     { approach: 'UU', travel: 'LLLDDDDR', kind: 'charger', label: 'Reservladdning', alternate: { path: 'UURR', label: 'Uppdragsgrind', condition: eq('route', 'FORTSÄTT') } }] },
-  { story: 'Lasrarna ligger i en sicksackgång. Beräkna total effekt vid panel A och stäng av överbelastningen innan roboten går in i fältet.', stages: [
+  { story: 'Lasrarna ligger i en sicksackgång. Beräkna total effekt vid panel A och välj KYL innan roboten går in i fältet.', stages: [
     { approach: 'LLD', travel: 'DDRRRDDRRU', kind: 'laser', label: 'Överbelastade lasrar' }] },
   { story: 'Reservkraften driver en utdragbar bro över ett schakt. Dela kraften vid brofästet och kör över först när varje sensor får tillräckligt.', stages: [
     { approach: 'DRRRR', travel: 'UUUUULL', kind: 'bridge', label: 'Sensorbro' }] },
-  { story: 'Batterilagret har en lastplattform i en återvändsgränd. Räkna hela batteripaket vid panel A och aktivera plattformen för att nå förrådets bakre utgång.', stages: [
+  { story: 'Batterilagret har en lastplattform i en återvändsgränd. Vid panel A behöver du både ett öppet förråd och tillräckligt många hela batteripaket för att nå den bakre utgången.', stages: [
     { approach: 'ULLLL', travel: 'DDDDRRRRRU', kind: 'lift', label: 'Batteriplattform' }] },
-  { story: 'En signalstyrd laser spärrar en smal passage. Beräkna resten vid signalpanelen och passera bara i BLINK-grenen.', stages: [
+  { story: 'En signalstyrd laser spärrar en smal passage. Kontrollera att signalen är påslagen och att det är rätt tick. Passera i den inre BLINK-grenen.', stages: [
     { approach: 'RRUU', travel: 'UULLLLDD', kind: 'laser', label: 'Signallaser' }] },
-  { story: 'Riskpanelen har tre vägval. LARM går vänster, VARNING går upp och LUGNT går höger. Välj varningsvägen med elif och följ den till målet.', stages: [
+  { story: 'Riskpanelen har tre vägval. LARM går vänster, VARNING går upp och LUGNT går höger. Kontrollera först sensorn och välj sedan varningsvägen med ett nästlat elif.', stages: [
     { approach: 'UUU', travel: 'UUURRR', kind: 'door', label: 'Varningsväg', alternate: { path: 'RRRD', label: 'Normalväg', condition: eq('status', 'LUGNT') } }] },
-  { story: 'Två olika hinder kräver två stopp. Vid A kyler du värmezonen. Kör sedan till B och pumpa bort vattnet innan du fortsätter till målet.', stages: [
-    { approach: 'RR', travel: 'UURRR', kind: 'heat', label: 'Värmezon', code: 'if temperature > 40:\n    fan_on = True', condition: eq('fan_on', true) },
-    { approach: '', travel: 'DDDRRU', kind: 'water', label: 'Översvämmad gång', code: 'if water_level >= 70:\n    pump_on = True', condition: eq('pump_on', true) }] },
-  { story: 'Luftslussen har en kortkontroll vid A och en tryckkontroll vid B. Lägg färden till B i det yttre if-blocket och öppna tryckporten med ett nästlat if.', stages: [
+  { story: 'Två olika hinder kräver två stopp och ström från huvudbrytaren. Vid A kyler du värmezonen. Kör sedan till B och pumpa bort vattnet innan du fortsätter till målet.', stages: [
+    { approach: 'RR', travel: 'UURRR', kind: 'heat', label: 'Värmezon', code: 'if power == 1:\n    if temperature > 40:\n        fan_on = True', condition: eq('fan_on', true) },
+    { approach: '', travel: 'DDDRRU', kind: 'water', label: 'Översvämmad gång', code: 'if power == 1:\n    if water_level >= 70:\n        pump_on = True', condition: eq('pump_on', true) }] },
+  { story: 'Luftslussen har en kortkontroll vid A och en miljökontroll vid B. Öppna den yttre grinden med kortet och kontrollera sedan både tryck och syre innan du går vidare.', stages: [
     { approach: 'DD', travel: 'RRRR', kind: 'door', label: 'Yttre sluss', code: 'if access_code == "NOVA":\n    card_ok = True', condition: eq('card_ok', true) },
-    { approach: '', travel: 'UULLU', kind: 'door', label: 'Tryckport', code: 'if access_code == "NOVA":\n    if pressure <= 5:\n        airlock_open = True', condition: eq('airlock_open', true) }] },
+    { approach: '', travel: 'UULLU', kind: 'door', label: 'Tryckport', condition: eq('airlock_open', true) }] },
   { story: 'Sista banan går genom tre system. A kontrollerar kortet, B lägger ut energibron och C startar skyddet. Beräkna energin vid B och nå alla tre paneler innan utgången.', stages: [
     { approach: 'RR', travel: 'UUURR', kind: 'door', label: 'Identitetsgrind', code: 'if access_code == "NOVA":\n    card_ok = True', condition: eq('card_ok', true) },
     { approach: '', travel: 'DDDDRR', kind: 'bridge', label: 'Energibro', code: 'remaining = main_power + backup_power - sensors * sensor_cost\nif remaining >= 50:\n    bridge_ready = True', condition: eq('bridge_ready', true) },
