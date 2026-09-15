@@ -7,12 +7,22 @@ export interface GridPos {
   y: number
 }
 
+export interface Mechanism {
+  id: string
+  label: string
+  kind: 'door' | 'laser' | 'heat' | 'water' | 'bridge' | 'lift' | 'charger'
+  station: GridPos
+  barriers: GridPos[]
+  condition: DoorCondition
+  required?: boolean
+}
+
 /** A door tile blocks movement like a wall until this comparison against a live variable is true. */
-export interface DoorCondition {
+export type DoorCondition = {
   variable: string
   op: '==' | '>=' | '<=' | '>' | '<'
-  value: number
-}
+  value: number | string | boolean
+} | { all: DoorCondition[] }
 
 /** Which visual "world view" a level uses alongside the shared editor/hints/controls. */
 export type LevelType = 'robot' | 'terminal' | 'dashboard' | 'inventory' | 'dictionary' | 'function' | 'class' | 'scene'
@@ -27,6 +37,7 @@ export type SnapshotValue =
   | { __class__: string; [attr: string]: SnapshotValue | string }
 
 export interface SuccessContext {
+  hasIfStatement?: boolean
   variables: Record<string, SnapshotValue>
   consoleLines: string[]
   ranWithoutError: boolean
@@ -35,6 +46,7 @@ export interface SuccessContext {
 }
 
 export interface LevelDefinition {
+  mechanisms?: Mechanism[]
   id: number
   world: string
   type: LevelType
@@ -73,6 +85,8 @@ export interface LevelDefinition {
 }
 
 export interface SimWorldState {
+  mechanisms?: Mechanism[]
+  activated?: string[]
   robot: { x: number; y: number; direction: Direction }
   resources: GridPos[]
   collected: number
@@ -84,6 +98,7 @@ export interface SimWorldState {
 }
 
 export type StepType =
+  | 'activate'
   | 'move'
   | 'turn_left'
   | 'turn_right'
@@ -121,6 +136,7 @@ export interface FriendlyError {
 }
 
 export interface RunResult {
+  hasIfStatement?: boolean
   ok: boolean
   steps: TraceStep[]
   error?: FriendlyError
@@ -138,6 +154,7 @@ export interface WorkerRequest {
   /** Answers already given to input() calls for this run, in call order. */
   inputs?: string[]
   level?: {
+    mechanisms?: Mechanism[]
     tileGrid: TileKind[][]
     playerStart: LevelDefinition['playerStart']
     doorCondition?: DoorCondition

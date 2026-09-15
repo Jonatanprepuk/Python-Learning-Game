@@ -8,11 +8,14 @@ import json as __json
 
 __RESERVED_NAMES = {
     'move', 'turn_left', 'turn_right', 'collect', 'can_move',
-    'resource_ahead', 'at_goal', 'print', 'input'
+    'resource_ahead', 'at_goal', 'print', 'input', 'activate'
 }
 
 def move():
     return __step_move(__sys._getframe(1).f_lineno)
+
+def activate():
+    return __step_activate(__sys._getframe(1).f_lineno)
 
 def turn_left():
     return __step_turn_left(__sys._getframe(1).f_lineno)
@@ -130,3 +133,8 @@ export function buildSource(userCode: string): string {
  * the variable inspector / dashboard / inventory / dictionary / class panels.
  */
 export const SNAPSHOT_SOURCE = `__json.dumps(__snapshot_globals(globals()))`
+
+/** Parse actual Python syntax so comments and strings cannot count as an if. */
+export function buildIfCheck(userCode: string): string {
+  return `import ast as __ast\nany(isinstance(node, __ast.If) for node in __ast.walk(__ast.parse(${JSON.stringify(userCode)})))`
+}

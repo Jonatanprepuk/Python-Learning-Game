@@ -1,4 +1,19 @@
-import type { Direction, GridPos, SimWorldState, TileKind } from '../types'
+import type { Direction, DoorCondition, GridPos, Mechanism, SimWorldState, SnapshotValue, TileKind } from '../types'
+
+/** Doors can listen to sensor readings, status text, or several checks together. */
+export function evaluateDoorCondition(condition: DoorCondition | undefined, variables: Record<string, SnapshotValue>): boolean {
+  if (!condition) return false
+  if ('all' in condition) return condition.all.length > 0 && condition.all.every(item => evaluateDoorCondition(item, variables))
+  const value = variables[condition.variable]
+  if (condition.op === '==') return value === condition.value
+  if (typeof value !== 'number' || typeof condition.value !== 'number') return false
+  switch (condition.op) {
+    case '>=': return value >= condition.value
+    case '<=': return value <= condition.value
+    case '>': return value > condition.value
+    case '<': return value < condition.value
+  }
+}
 
 const DELTAS: Record<Direction, GridPos> = {
   up: { x: 0, y: -1 },
@@ -30,7 +45,8 @@ export function tileAt(grid: TileKind[][], x: number, y: number): TileKind {
 
 export function createInitialState(
   tileGrid: TileKind[][],
-  start: { x: number; y: number; direction: Direction }
+  start: { x: number; y: number; direction: Direction },
+  mechanisms?: Mechanism[]
 ): SimWorldState {
   const resources: GridPos[] = []
   tileGrid.forEach((row, y) => {
@@ -39,6 +55,8 @@ export function createInitialState(
     })
   })
   return {
+    mechanisms,
+    activated: [],
     robot: { x: start.x, y: start.y, direction: start.direction },
     resources,
     collected: 0,
@@ -51,6 +69,8 @@ export function createInitialState(
 
 function clone(state: SimWorldState): SimWorldState {
   return {
+    mechanisms: state.mechanisms,
+    activated: [...(state.activated ?? [])],
     robot: { ...state.robot },
     resources: state.resources.map((r) => ({ ...r })),
     collected: state.collected,
@@ -86,6 +106,12 @@ export function isBlocked(grid: TileKind[][], pos: GridPos, doorsOpen: boolean):
 export function applyMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): SimWorldState {
   const next = clone(state)
   const target = aheadPosition(state)
+  const obstacle = closedMechanism(state, target)
+  if (obstacle) {
+    next.bumped = true
+    next.message = `${obstacle.label} blockerar vägen. Gå till panel ${obstacle.id} och använd activate() med rätt villkor.`
+    return next
+  }
   if (isBlocked(grid, target, doorsOpen)) {
     next.bumped = true
     next.message =
@@ -124,12 +150,12 @@ export function applyCollect(state: SimWorldState): SimWorldState {
 }
 
 export function queryCanMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
-  return !isBlocked(grid, aheadPosition(state), doorsOpen)
+  return !closedMechanism(state, aheadPosition(state)) && !isBlocked(grid, aheadPosition(state), doorsOpen)
 }
 
 export function queryResourceAhead(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
   const target = aheadPosition(state)
-  if (isBlocked(grid, target, doorsOpen)) return false
+  if (closedMechanism(state, target) || isBlocked(grid, target, doorsOpen)) return false
   return state.resources.some((r) => r.x === target.x && r.y === target.y)
 }
 
@@ -144,6 +170,26 @@ export function checkWin(
 ): boolean {
   const onGoal = tileAt(grid, state.robot.x, state.robot.y) === 'goal'
   if (!onGoal) return false
+  if (state.mechanisms?.some(item => item.required !== false && !state.activated?.includes(item.id))) return false
   if (requireAllResources && state.collected < state.totalResources) return false
   return true
+}
+
+function closedMechanism(state: SimWorldState, pos: GridPos): Mechanism | undefined {
+  return state.mechanisms?.find(item => !state.activated?.includes(item.id) && item.barriers.some(cell => cell.x === pos.x && cell.y === pos.y))
+}
+
+export function applyActivate(state: SimWorldState, variables: Record<string, SnapshotValue>): SimWorldState {
+  const next = clone(state)
+  const stations = state.mechanisms?.filter(item => item.station.x === state.robot.x && item.station.y === state.robot.y) ?? []
+  const matching = stations.filter(item => evaluateDoorCondition(item.condition, variables))
+  if (!stations.length) {
+    next.message = 'Här finns ingen panel. Ställ roboten på en bokstavsruta innan activate().'
+  } else if (!matching.length) {
+    next.message = `Panel ${stations[0].id}: kontrollen stämmer inte än.`
+  } else {
+    next.activated = [...new Set([...(state.activated ?? []), ...matching.map(item => item.id)])]
+    next.message = `${matching.map(item => item.label).join(', ')} är klar. Passagen är säker.`
+  }
+  return next
 }

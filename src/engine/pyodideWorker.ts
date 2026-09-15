@@ -1,12 +1,14 @@
 /// <reference lib="webworker" />
-import { SNAPSHOT_SOURCE, buildSource } from './pyBootstrap'
+import { SNAPSHOT_SOURCE, buildSource, buildIfCheck } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
+  applyActivate,
   applyMove,
   applyTurnLeft,
   applyTurnRight,
   createInitialState,
+  evaluateDoorCondition,
   queryAtGoal,
   queryCanMove,
   queryResourceAhead,
@@ -50,27 +52,10 @@ async function init() {
 }
 
 interface RunOutcome {
+  hasIfStatement?: boolean
   steps: TraceStep[]
   finalVariables?: Record<string, SnapshotValue>
   awaitingInput?: { prompt: string }
-}
-
-function evaluateDoorCondition(condition: DoorCondition | undefined, variables: Record<string, SnapshotValue>): boolean {
-  if (!condition) return false
-  const v = variables[condition.variable]
-  if (typeof v !== 'number') return false
-  switch (condition.op) {
-    case '==':
-      return v === condition.value
-    case '>=':
-      return v >= condition.value
-    case '<=':
-      return v <= condition.value
-    case '>':
-      return v > condition.value
-    case '<':
-      return v < condition.value
-  }
 }
 
 function runUserCode(
@@ -78,9 +63,10 @@ function runUserCode(
   grid: TileKind[][],
   playerStart: { x: number; y: number; direction: import('../types').Direction },
   inputs: string[],
-  doorCondition: DoorCondition | undefined
+  doorCondition: DoorCondition | undefined,
+  mechanisms?: import('../types').Mechanism[]
 ): RunOutcome {
-  let state: SimWorldState = createInitialState(grid, playerStart)
+  let state: SimWorldState = createInitialState(grid, playerStart, mechanisms)
   const steps: TraceStep[] = []
   let stepCount = 0
   let inputIndex = 0
@@ -127,6 +113,11 @@ function runUserCode(
   const globals: any = pyodide.toPy({})
 
   try {
+    globals.set('__step_activate', (rawLine: number) => {
+      guard()
+      state = applyActivate(state, liveVariables)
+      pushStep('activate', rawLine)
+    })
     globals.set('__step_move', (rawLine: number) => {
       guard()
       state = applyMove(state, grid, doorsOpenNow())
@@ -201,6 +192,7 @@ function runUserCode(
       pushStep('state', rawLine, undefined, undefined, undefined, undefined, liveVariables)
     })
 
+    const hasIfStatement = Boolean(pyodide.runPython(buildIfCheck(code), { globals }))
     const source = buildSource(code)
     try {
       pyodide.runPython(source, { globals })
@@ -216,7 +208,7 @@ function runUserCode(
 
     const snapshotJson = pyodide.runPython(SNAPSHOT_SOURCE, { globals })
     const finalVariables = JSON.parse(snapshotJson) as Record<string, SnapshotValue>
-    return { steps, finalVariables }
+    return { steps, finalVariables, hasIfStatement }
   } finally {
     globals.destroy()
   }
@@ -228,14 +220,15 @@ async function handleRun(req: WorkerRequest) {
     return
   }
   try {
-    const { steps, finalVariables, awaitingInput } = runUserCode(
+    const { steps, finalVariables, awaitingInput, hasIfStatement } = runUserCode(
       req.code,
       req.level.tileGrid,
       req.level.playerStart,
       req.inputs ?? [],
-      req.level.doorCondition
+      req.level.doorCondition,
+      req.level.mechanisms
     )
-    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput } })
+    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = translateError(message)

@@ -292,6 +292,7 @@ code {
 
 .level-nav__row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -347,6 +348,35 @@ code {
 .level-nav__item--done:not(.level-nav__item--active)::before {
   background: var(--green);
   box-shadow: 0 0 7px var(--green-glow);
+}
+
+/* Difficulty colors for world 2; preserve the existing buttons and layout. */
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(-n + 4) {
+  --difficulty-rgb: 74, 222, 128;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 5):nth-child(-n + 8) {
+  --difficulty-rgb: 250, 224, 71;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 9):nth-child(-n + 14) {
+  --difficulty-rgb: 251, 146, 60;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:nth-child(n + 15):nth-child(-n + 20) {
+  --difficulty-rgb: 248, 113, 113;
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item {
+  color: rgb(var(--difficulty-rgb));
+  border-color: rgba(var(--difficulty-rgb), 0.55);
+  background: linear-gradient(180deg, rgba(var(--difficulty-rgb), 0.23), rgba(var(--difficulty-rgb), 0.09));
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item::before {
+  background: rgb(var(--difficulty-rgb));
+  box-shadow: 0 0 7px rgba(var(--difficulty-rgb), 0.3);
+}
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item:hover,
+.level-nav__group[data-world='sakerhetssystemet'] .level-nav__item--active {
+  color: var(--paper);
+  border-color: rgb(var(--difficulty-rgb));
+  background: linear-gradient(180deg, rgba(var(--difficulty-rgb), 0.5), rgba(var(--difficulty-rgb), 0.25));
 }
 
 /* ---------- Objective ---------- */
@@ -1761,3 +1791,22 @@ input:focus-visible,
   outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
+/* Security mechanisms share the original robot grid, with distinct obstacle materials. */
+.station { position: absolute; inset: 8%; display: grid; place-items: center; border: 2px solid #67b9e8; border-radius: 6px; background: #143747; color: #b9e8ff; font: bold 18px monospace; }
+.station--active { border-color: #6cb532; background: #213c21; }
+.obstacle { --hazard: #e0b837; box-shadow: inset 0 0 0 2px var(--hazard); background: repeating-linear-gradient(135deg, #15212b 0 8px, #36414a 8px 12px); }
+.obstacle--laser { --hazard: #f45c80; background: repeating-linear-gradient(0deg, #301826 0 9px, #ed4772 10px 12px); }
+.obstacle--heat { --hazard: #ff903f; background: repeating-linear-gradient(135deg, #562b16 0 7px, #b85523 8px 10px); }
+.obstacle--water { --hazard: #51bef5; background: repeating-linear-gradient(0deg, #133958 0 8px, #287fa7 9px 12px); }
+.obstacle--bridge { --hazard: #ac91dc; background: #080e18; }
+.obstacle--lift { --hazard: #f0be00; }
+.obstacle--charger { --hazard: #6cb532; background: #153727; }
+.obstacle__symbol { position: absolute; inset: 0; display: grid; place-items: center; font: bold 28px monospace; color: var(--hazard); text-shadow: 0 1px 4px #000; }
+.obstacle--clear { --hazard: #6cb532; background: #20342a; box-shadow: inset 0 0 0 1px #658b46; }
+.obstacle--clear .obstacle__symbol { opacity: .45; font-size: 20px; }
+.mechanism-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 580px; font-size: 12px; color: #b6c5cb; }
+.mechanism-legend > span:first-child { width: 100%; text-align: center; }
+.mechanism-key { padding: 5px 8px; border: 1px solid #50616c; border-radius: 4px; background: #14232e; }
+.mechanism-key--laser { border-color: #ed4772; }
+.mechanism-key--heat { border-color: #ff903f; }
+.mechanism-key--water { border-color: #51bef5; }

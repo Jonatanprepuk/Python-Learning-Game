@@ -160,7 +160,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
       case 'robot':
         return <GameWorld level={level} worldState={session.worldState} lastStep={session.lastStep} />
       case 'dashboard':
-        return <DashboardPanel variables={session.finalVariables} watch={level.watchVariables ?? []} />
+        return <DashboardPanel variables={session.currentVariables} watch={level.watchVariables ?? []} />
       case 'inventory':
         return <InventoryPanel variables={session.finalVariables} listName={level.watchList ?? ''} />
       case 'dictionary':
@@ -210,10 +210,10 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
         </button>
         <nav className="level-nav">
           {currentWorldGroup && (
-            <div className="level-nav__group" key={currentWorldGroup.world}>
+            <div className="level-nav__group" key={currentWorldGroup.world} data-world={currentWorldGroup.world}>
               <span className="level-nav__world">{currentWorldGroup.title}</span>
               <div className="level-nav__row">
-                {currentWorldGroup.items.map(({ level: l, index: i }) => (
+                {currentWorldGroup.items.map(({ level: l, index: i }, position) => (
                   <button
                     key={l.id}
                     className={`level-nav__item${i === levelIndex ? ' level-nav__item--active' : ''}${
@@ -222,7 +222,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
                     onClick={() => setLevelIndex(i)}
                     title={l.title}
                   >
-                    {completed.has(l.id) ? '✓' : l.id}
+                    {completed.has(l.id) ? '✓' : position + 1}
                   </button>
                 ))}
               </div>
@@ -253,7 +253,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             highlightedLine={session.highlightedLine}
             readOnly={session.phase === 'running' || session.phase === 'awaiting_input'}
           />
-          {level.type === 'scene' && level.showVariables && (
+          {(level.type === 'scene' || (level.type === 'robot' && level.world === 'sakerhetssystemet')) && level.showVariables && (
             <VariableInspector variables={session.currentVariables} compact />
           )}
           {level.showConsole && (
@@ -270,9 +270,11 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          {level.type === 'robot'
+          {level.world === 'sakerhetssystemet'
+            ? 'Inte klart än. Besök panelrutorna och använd activate() med rätt villkor. Lägg robotens rörelser i rätt gren och nå den gröna målrutan.'
+            : level.type === 'robot'
             ? 'Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.'
-            : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.'}
+              : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.'}
         </div>
       )}
 
