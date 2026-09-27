@@ -8,7 +8,8 @@ import json as __json
 
 __RESERVED_NAMES = {
     'move', 'turn_left', 'turn_right', 'collect', 'can_move',
-    'resource_ahead', 'at_goal', 'print', 'input', 'activate'
+    'resource_ahead', 'at_goal', 'can_move_left', 'can_move_right',
+    'at_corner', 'steps_to_goal', 'print', 'input', 'activate'
 }
 
 def move():
@@ -28,6 +29,18 @@ def collect():
 
 def can_move():
     return bool(__step_can_move(__sys._getframe(1).f_lineno))
+
+def can_move_left():
+    return bool(__step_can_move_left(__sys._getframe(1).f_lineno))
+
+def can_move_right():
+    return bool(__step_can_move_right(__sys._getframe(1).f_lineno))
+
+def at_corner():
+    return bool(__step_at_corner(__sys._getframe(1).f_lineno))
+
+def steps_to_goal():
+    return __step_steps_to_goal(__sys._getframe(1).f_lineno)
 
 def resource_ahead():
     return bool(__step_resource_ahead(__sys._getframe(1).f_lineno))
@@ -137,4 +150,21 @@ export const SNAPSHOT_SOURCE = `__json.dumps(__snapshot_globals(globals()))`
 /** Parse actual Python syntax so comments and strings cannot count as an if. */
 export function buildIfCheck(userCode: string): string {
   return `import ast as __ast\nany(isinstance(node, __ast.If) for node in __ast.walk(__ast.parse(${JSON.stringify(userCode)})))`
+}
+
+/** Return the source lines of move() calls nested in each loop kind. Runtime
+ * move traces are checked against these lines, so a dead loop cannot pass. */
+export function buildCodeAnalysis(userCode: string): string {
+  return `import ast as __ast\nimport json as __json\n__tree = __ast.parse(${JSON.stringify(userCode)})\n__nodes = list(__ast.walk(__tree))\ndef __move_lines(node):
+    if isinstance(node, (__ast.FunctionDef, __ast.AsyncFunctionDef, __ast.Lambda, __ast.ClassDef)):
+        return
+    if isinstance(node, __ast.Call) and isinstance(node.func, __ast.Name) and node.func.id == 'move':
+        yield node.lineno
+    for child in __ast.iter_child_nodes(node):
+        yield from __move_lines(child)
+__json.dumps({
+    'hasIfStatement': any(isinstance(node, __ast.If) for node in __nodes),
+    'forMoveLines': sorted({line for node in __nodes if isinstance(node, (__ast.For, __ast.AsyncFor)) for body in node.body for line in __move_lines(body)}),
+    'whileMoveLines': sorted({line for node in __nodes if isinstance(node, __ast.While) for body in node.body for line in __move_lines(body)})
+})`
 }

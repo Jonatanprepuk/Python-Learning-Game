@@ -440,6 +440,24 @@ code {
   font-size: 0.98rem;
 }
 
+.objective-panel__commands {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--paper-dim);
+  font-size: 0.75rem;
+}
+
+.objective-panel__commands code {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  color: var(--paper);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
 /* ---------- Playground toolbar ---------- */
 
 .playground-toolbar {
@@ -528,6 +546,24 @@ code {
   background: rgba(240, 166, 59, 0.16) !important;
   box-shadow: inset 3px 0 0 var(--amber);
 }
+
+.debug-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 58px;
+  border-top: 1px solid var(--line-soft);
+  padding: 8px 12px;
+  background: var(--panel);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+}
+
+.debug-panel__title { color: var(--amber); font-weight: 700; }
+.debug-panel__progress, .debug-panel__position { color: var(--paper-dim); }
+.debug-panel__detail { color: var(--paper); }
 
 /* ---------- Console panel ---------- */
 

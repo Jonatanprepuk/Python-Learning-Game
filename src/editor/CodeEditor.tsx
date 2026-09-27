@@ -45,7 +45,16 @@ export function CodeEditor({ value, onChange, highlightedLine, readOnly }: CodeE
     if (highlightedLine != null) {
       const lineNumber = Math.max(1, Math.min(highlightedLine, view.state.doc.lines))
       const line = view.state.doc.line(lineNumber)
-      view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'center' }) })
+      // Scroll only CodeMirror's own viewport. EditorView.scrollIntoView can
+      // also scroll the surrounding page while the program is playing.
+      const block = view.lineBlockAt(line.from)
+      const scroller = view.scrollDOM
+      const margin = 24
+      if (block.top < scroller.scrollTop + margin) {
+        scroller.scrollTop = Math.max(0, block.top - margin)
+      } else if (block.bottom > scroller.scrollTop + scroller.clientHeight - margin) {
+        scroller.scrollTop = block.bottom - scroller.clientHeight + margin
+      }
     }
   }, [highlightedLine])
 

@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { SNAPSHOT_SOURCE, buildSource, buildIfCheck } from './pyBootstrap'
+import { SNAPSHOT_SOURCE, buildSource, buildCodeAnalysis } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
@@ -10,8 +10,12 @@ import {
   createInitialState,
   evaluateDoorCondition,
   queryAtGoal,
+  queryAtCorner,
   queryCanMove,
+  queryCanMoveLeft,
+  queryCanMoveRight,
   queryResourceAhead,
+  queryStepsToGoal,
   withDoorsOpen
 } from './simulate'
 import type {
@@ -30,7 +34,7 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope
 const PYODIDE_VERSION = 'v0.26.4'
 const INDEX_URL = `https://cdn.jsdelivr.net/pyodide/${PYODIDE_VERSION}/full/`
 
-const MAX_STEPS = 400
+const MAX_STEPS = 2500
 const INPUT_NEEDED_PREFIX = '__INPUT_NEEDED__:'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +57,8 @@ async function init() {
 
 interface RunOutcome {
   hasIfStatement?: boolean
+  movedInFor?: boolean
+  movedInWhile?: boolean
   steps: TraceStep[]
   finalVariables?: Record<string, SnapshotValue>
   awaitingInput?: { prompt: string }
@@ -85,7 +91,7 @@ function runUserCode(
   function pushStep(
     type: StepType,
     rawLine: number,
-    result?: boolean,
+    result?: boolean | number,
     output?: string,
     callInfo?: TraceStep['callInfo'],
     returnInfo?: TraceStep['returnInfo'],
@@ -144,6 +150,30 @@ function runUserCode(
       pushStep('can_move', rawLine, result)
       return result
     })
+    globals.set('__step_can_move_left', (rawLine: number) => {
+      guard()
+      const result = queryCanMoveLeft(state, grid, doorsOpenNow())
+      pushStep('can_move_left', rawLine, result)
+      return result
+    })
+    globals.set('__step_can_move_right', (rawLine: number) => {
+      guard()
+      const result = queryCanMoveRight(state, grid, doorsOpenNow())
+      pushStep('can_move_right', rawLine, result)
+      return result
+    })
+    globals.set('__step_at_corner', (rawLine: number) => {
+      guard()
+      const result = queryAtCorner(state, grid, doorsOpenNow())
+      pushStep('at_corner', rawLine, result)
+      return result
+    })
+    globals.set('__step_steps_to_goal', (rawLine: number) => {
+      guard()
+      const result = queryStepsToGoal(state, grid, doorsOpenNow())
+      pushStep('steps_to_goal', rawLine, result)
+      return result
+    })
     globals.set('__step_resource_ahead', (rawLine: number) => {
       guard()
       const result = queryResourceAhead(state, grid, doorsOpenNow())
@@ -192,7 +222,11 @@ function runUserCode(
       pushStep('state', rawLine, undefined, undefined, undefined, undefined, liveVariables)
     })
 
-    const hasIfStatement = Boolean(pyodide.runPython(buildIfCheck(code), { globals }))
+    const analysis = JSON.parse(pyodide.runPython(buildCodeAnalysis(code), { globals })) as {
+      hasIfStatement: boolean
+      forMoveLines: number[]
+      whileMoveLines: number[]
+    }
     const source = buildSource(code)
     try {
       pyodide.runPython(source, { globals })
@@ -208,7 +242,12 @@ function runUserCode(
 
     const snapshotJson = pyodide.runPython(SNAPSHOT_SOURCE, { globals })
     const finalVariables = JSON.parse(snapshotJson) as Record<string, SnapshotValue>
-    return { steps, finalVariables, hasIfStatement }
+    const successfulMoveLines = new Set(steps.filter(step => step.type === 'move' && !step.state.bumped).map(step => step.line))
+    return {
+      steps, finalVariables, hasIfStatement: analysis.hasIfStatement,
+      movedInFor: analysis.forMoveLines.some(line => successfulMoveLines.has(line)),
+      movedInWhile: analysis.whileMoveLines.some(line => successfulMoveLines.has(line))
+    }
   } finally {
     globals.destroy()
   }
@@ -220,7 +259,7 @@ async function handleRun(req: WorkerRequest) {
     return
   }
   try {
-    const { steps, finalVariables, awaitingInput, hasIfStatement } = runUserCode(
+    const { steps, finalVariables, awaitingInput, hasIfStatement, movedInFor, movedInWhile } = runUserCode(
       req.code,
       req.level.tileGrid,
       req.level.playerStart,
@@ -228,7 +267,7 @@ async function handleRun(req: WorkerRequest) {
       req.level.doorCondition,
       req.level.mechanisms
     )
-    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement } })
+    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement, movedInFor, movedInWhile } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = translateError(message)

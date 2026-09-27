@@ -63,6 +63,11 @@ export interface LevelDefinition {
   hints: string[]
   successTip?: string
   requireAllResources?: boolean
+  /** A robot move must execute from inside this kind of loop. */
+  requiredLoop?: 'for' | 'while'
+  requireIfStatement?: boolean
+  /** Replace the map with a new perfect maze each time Run is pressed. */
+  randomMaze?: boolean
   /** Show the print()/input() console panel next to the editor. */
   showConsole?: boolean
   /** Show the generic variable inspector, fed by the end-of-run snapshot. */
@@ -104,6 +109,10 @@ export type StepType =
   | 'turn_right'
   | 'collect'
   | 'can_move'
+  | 'can_move_left'
+  | 'can_move_right'
+  | 'at_corner'
+  | 'steps_to_goal'
   | 'resource_ahead'
   | 'at_goal'
   | 'print'
@@ -116,7 +125,7 @@ export interface TraceStep {
   line: number
   type: StepType
   state: SimWorldState
-  result?: boolean
+  result?: boolean | number
   note?: string | null
   output?: string
   /** 'call' step: the function name and its argument snapshot. */
@@ -137,6 +146,8 @@ export interface FriendlyError {
 
 export interface RunResult {
   hasIfStatement?: boolean
+  movedInFor?: boolean
+  movedInWhile?: boolean
   ok: boolean
   steps: TraceStep[]
   error?: FriendlyError
