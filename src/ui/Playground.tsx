@@ -4,6 +4,7 @@ import { parseGrid } from '../levels/levels'
 import { useLevelSession } from '../hooks/useLevelSession'
 import { GameWorld } from '../game/GameWorld'
 import { CodeEditor } from '../editor/CodeEditor'
+import { DebugPanel } from './DebugPanel'
 import { ConsolePanel } from './ConsolePanel'
 import { VariableInspector } from './VariableInspector'
 import { Controls } from './Controls'
@@ -149,8 +150,9 @@ export function Playground({ onBack }: PlaygroundProps) {
             value={session.code}
             onChange={session.setCode}
             highlightedLine={session.highlightedLine}
-            readOnly={session.phase === 'running' || session.phase === 'awaiting_input'}
+            readOnly={session.phase === 'running' || session.phase === 'paused' || session.phase === 'awaiting_input'}
           />
+          {session.debugMode && <DebugPanel phase={session.phase} step={session.lastStep} progress={session.debugProgress} />}
           <VariableInspector variables={session.currentVariables} compact />
           <ConsolePanel
             lines={session.consoleLines}
@@ -170,7 +172,8 @@ export function Playground({ onBack }: PlaygroundProps) {
           <ul className="hint-panel__list">
             <li className="hint-panel__item">
               <pre className="hint-panel__text">
-                move(), turn_left(), turn_right(), collect(), can_move(), resource_ahead(), at_goal() —
+                move(), turn_left(), turn_right(), collect(), can_move(), can_move_left(),
+                can_move_right(), at_corner(), steps_to_goal(), resource_ahead(), at_goal() —
                 och all vanlig Python: variabler, if/elif/else, for, while, listor, dict, def, class.
               </pre>
             </li>
@@ -181,9 +184,14 @@ export function Playground({ onBack }: PlaygroundProps) {
           speed={session.speed}
           onSpeedChange={session.setSpeed}
           onRun={session.runCode}
+          onDebug={session.debugCode}
+          onPause={session.pause}
+          onResume={session.resume}
+          onStep={session.stepOnce}
           onStop={session.stop}
           onReset={session.reset}
           engineReady={session.engineStatus === 'ready'}
+          canPause={session.canPause}
         />
       </footer>
     </div>

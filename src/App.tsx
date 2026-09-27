@@ -4,6 +4,7 @@ import { useLevelSession } from './hooks/useLevelSession'
 import { GameWorld } from './game/GameWorld'
 import { ControlCenterScene } from './game/ControlCenterScene'
 import { CodeEditor } from './editor/CodeEditor'
+import { DebugPanel } from './ui/DebugPanel'
 import { ObjectivePanel } from './ui/ObjectivePanel'
 import { Controls } from './ui/Controls'
 import { HintPanel } from './ui/HintPanel'
@@ -123,7 +124,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
   }, [levelIndex])
 
   useEffect(() => {
-    if (session.phase === 'success') {
+    if (session.completion?.levelId === level.id) {
       setCompleted((prev) => {
         if (prev.has(level.id)) return prev
         const next = new Set(prev)
@@ -131,7 +132,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
         return next
       })
     }
-  }, [session.phase, level.id])
+  }, [session.completion, level.id])
 
   // Persist completed levels so progress survives a page refresh.
   useEffect(() => {
@@ -149,7 +150,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
   )
   const isLastLevel = levelIndex === worldLevelIndexes[worldLevelIndexes.length - 1]
   const worldLevelPosition = worldLevelIndexes.indexOf(levelIndex)
-  const showModal = session.phase === 'success' && !modalDismissed
+  const showModal = session.phase === 'success' && session.completion?.levelId === level.id && !modalDismissed
 
   const goToNext = () => {
     if (!isLastLevel) setLevelIndex((i) => i + 1)
@@ -158,7 +159,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
   const worldView = (() => {
     switch (level.type) {
       case 'robot':
-        return <GameWorld level={level} worldState={session.worldState} lastStep={session.lastStep} />
+        return <GameWorld level={level.randomMaze ? { ...level, tileGrid: session.activeGrid } : level} worldState={session.worldState} lastStep={session.lastStep} />
       case 'dashboard':
         return <DashboardPanel variables={session.currentVariables} watch={level.watchVariables ?? []} />
       case 'inventory':
@@ -251,8 +252,9 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             value={session.code}
             onChange={session.setCode}
             highlightedLine={session.highlightedLine}
-            readOnly={session.phase === 'running' || session.phase === 'awaiting_input'}
+            readOnly={session.phase === 'running' || session.phase === 'paused' || session.phase === 'awaiting_input'}
           />
+          {session.debugMode && <DebugPanel phase={session.phase} step={session.lastStep} progress={session.debugProgress} />}
           {(level.type === 'scene' || (level.type === 'robot' && level.world === 'sakerhetssystemet')) && level.showVariables && (
             <VariableInspector variables={session.currentVariables} compact />
           )}
@@ -270,28 +272,35 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          {level.world === 'sakerhetssystemet'
+          {session.failureReason ?? (level.world === 'sakerhetssystemet'
             ? 'Inte klart än. Besök panelrutorna och använd activate() med rätt villkor. Lägg robotens rörelser i rätt gren och nå den gröna målrutan.'
             : level.type === 'robot'
             ? 'Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.'
-              : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.'}
+              : 'Koden kördes utan fel, men resultatet stämmer inte riktigt än. Kolla igenom villkoren i din kod och kör igen.')}
         </div>
       )}
 
       <footer className="app-footer">
-        <HintPanel
-          hints={level.hints}
-          revealedCount={session.hintIndex}
-          onReveal={session.revealNextHint}
-        />
+        {level.hints.length > 0 && (
+          <HintPanel
+            hints={level.hints}
+            revealedCount={session.hintIndex}
+            onReveal={session.revealNextHint}
+          />
+        )}
         <Controls
           phase={session.phase}
           speed={session.speed}
           onSpeedChange={session.setSpeed}
           onRun={session.runCode}
+          onDebug={session.debugCode}
+          onPause={session.pause}
+          onResume={session.resume}
+          onStep={session.stepOnce}
           onStop={session.stop}
           onReset={session.reset}
           engineReady={session.engineStatus === 'ready'}
+          canPause={session.canPause}
         />
       </footer>
 

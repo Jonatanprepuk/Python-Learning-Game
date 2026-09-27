@@ -153,6 +153,43 @@ export function queryCanMove(state: SimWorldState, grid: TileKind[][], doorsOpen
   return !closedMechanism(state, aheadPosition(state)) && !isBlocked(grid, aheadPosition(state), doorsOpen)
 }
 
+function canMoveInDirection(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean, direction: Direction): boolean {
+  const delta = DELTAS[direction]
+  const target = { x: state.robot.x + delta.x, y: state.robot.y + delta.y }
+  return !closedMechanism(state, target) && !isBlocked(grid, target, doorsOpen)
+}
+
+export function queryCanMoveLeft(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
+  return canMoveInDirection(state, grid, doorsOpen, LEFT_TURN[state.robot.direction])
+}
+
+export function queryCanMoveRight(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
+  return canMoveInDirection(state, grid, doorsOpen, RIGHT_TURN[state.robot.direction])
+}
+
+export function queryAtCorner(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
+  const open = (Object.keys(DELTAS) as Direction[]).filter(direction => canMoveInDirection(state, grid, doorsOpen, direction))
+  return open.length === 2 && DELTAS[open[0]].x * DELTAS[open[1]].x + DELTAS[open[0]].y * DELTAS[open[1]].y === 0
+}
+
+export function queryStepsToGoal(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): number {
+  const start = { x: state.robot.x, y: state.robot.y }
+  const seen = new Set([`${start.x},${start.y}`])
+  const queue = [{ ...start, distance: 0 }]
+  for (let i = 0; i < queue.length; i++) {
+    const current = queue[i]
+    if (tileAt(grid, current.x, current.y) === 'goal') return current.distance
+    for (const delta of Object.values(DELTAS)) {
+      const next = { x: current.x + delta.x, y: current.y + delta.y }
+      const key = `${next.x},${next.y}`
+      if (seen.has(key) || closedMechanism(state, next) || isBlocked(grid, next, doorsOpen)) continue
+      seen.add(key)
+      queue.push({ ...next, distance: current.distance + 1 })
+    }
+  }
+  return -1
+}
+
 export function queryResourceAhead(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
   const target = aheadPosition(state)
   if (closedMechanism(state, target) || isBlocked(grid, target, doorsOpen)) return false
