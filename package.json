@@ -6,6 +6,7 @@
   "scripts": {
     "test:security": "node scripts/test-security.mjs",
     "test:loops": "node scripts/test-loops.mjs",
+    "test:data": "node scripts/test-data.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

@@ -1,11 +1,12 @@
 import type { Direction, DoorCondition, GridPos, Mechanism, SimWorldState, SnapshotValue, TileKind } from '../types'
+import { snapshotEqual } from './snapshotEqual'
 
 /** Doors can listen to sensor readings, status text, or several checks together. */
 export function evaluateDoorCondition(condition: DoorCondition | undefined, variables: Record<string, SnapshotValue>): boolean {
   if (!condition) return false
   if ('all' in condition) return condition.all.length > 0 && condition.all.every(item => evaluateDoorCondition(item, variables))
   const value = variables[condition.variable]
-  if (condition.op === '==') return value === condition.value
+  if (condition.op === '==') return snapshotEqual(value, condition.value)
   if (typeof value !== 'number' || typeof condition.value !== 'number') return false
   switch (condition.op) {
     case '>=': return value >= condition.value

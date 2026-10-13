@@ -2,6 +2,7 @@ import type { LevelDefinition, TileKind } from '../types'
 import { pickNumeric } from './valueBinding'
 import { SECURITY_LEVELS } from './securityLevels'
 import { LOOP_LEVELS } from './loopLevels'
+import { DATA_LEVELS } from './dataLevels'
 
 // Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
 // doorCondition holds), G = goal, S = start (rendered as empty).
@@ -55,8 +56,8 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'datacentret',
     title: 'Datacentret',
-    tagline: 'Listor och dictionaries.',
-    status: 'soon'
+    tagline: '20 uppdrag med listor, dictionaries och nästlade data.',
+    status: 'available'
   },
   {
     id: 'robotlabbet',
@@ -249,7 +250,8 @@ export const LEVELS: LevelDefinition[] = [
     successCheck: (ctx) => pickNumeric(ctx.variables, ctx.consoleLines, ['remaining_energy', 'energy_left']) === 50
   },
   ...SECURITY_LEVELS,
-  ...LOOP_LEVELS
+  ...LOOP_LEVELS,
+  ...DATA_LEVELS
 ]
 
 export function getLevel(id: number): LevelDefinition | undefined {
