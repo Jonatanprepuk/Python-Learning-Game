@@ -40,28 +40,28 @@ export const DATA_EXERCISES: DataExercise[] = [
     tip: 'Listor går att ändra. Tilldelning till ett index ersätter ett befintligt värde.'
   },
   {
-    title: 'Köa säkerhetskopior', concept: 'append() och len()',
-    objective: 'Lägg "bilder" och sedan "loggar" sist i jobs med append(). Spara antalet jobb i count med len(). Behåll det första jobbet.',
-    setup: 'jobs = ["databas"]', solution: 'jobs.append("bilder")\njobs.append("loggar")\ncount = len(jobs)',
-    expected: { jobs: ['databas', 'bilder', 'loggar'], count: 3 }, commands: ['lista.append(värde)', 'len(lista)'],
-    hints: ['append() lägger till ett värde sist och ändrar listan direkt.', 'Anropa jobs.append(...) två gånger. Räkna sedan med count = len(jobs).'],
-    tip: 'append() ändrar listan på plats. Skriv inte jobs = jobs.append(...), eftersom metoden returnerar None.'
+    title: 'Köa säkerhetskopior', concept: 'for, append() och len()',
+    objective: 'Gå igenom incoming med en for-loop och lägg varje jobb sist i jobs med append(). Behåll ordningen och de jobb som redan finns. Spara sedan antalet i count med len(). Behåll incoming.',
+    setup: 'jobs = ["databas"]\nincoming = ["bilder", "loggar"]', solution: 'for job in incoming:\n    jobs.append(job)\ncount = len(jobs)',
+    expected: { jobs: ['databas', 'bilder', 'loggar'], incoming: ['bilder', 'loggar'], count: 3 }, commands: ['for värde in lista:', 'lista.append(värde)', 'len(lista)'],
+    hints: ['for job in incoming: hämtar ett jobb i taget.', 'Lägg jobs.append(job) i loopen. Räkna med len(jobs) efter loopen.'],
+    tip: 'En for-loop passar när samma handling ska utföras för varje element i en lista.'
   },
   {
-    title: 'Behandla första jobbet', concept: 'pop() tar bort och returnerar',
-    objective: 'Ta bort första jobbet ur jobs med pop(0) och spara det i current. Lägg sedan "rapport" sist. Spara återstående antal jobb i remaining.',
-    setup: 'jobs = ["databas", "bilder", "loggar"]', solution: 'current = jobs.pop(0)\njobs.append("rapport")\nremaining = len(jobs)',
-    expected: { jobs: ['bilder', 'loggar', 'rapport'], current: 'databas', remaining: 3 }, commands: ['lista.pop(index)', 'lista.append(värde)', 'len(lista)'],
-    hints: ['pop(0) tar bort första elementet och lämnar tillbaka det.', 'Spara returvärdet: current = jobs.pop(0). Lägg till rapporten efteråt.'],
-    tip: 'Med pop() kan du både hämta ett värde och ta bort det ur kön.'
+    title: 'Töm arbetskön', concept: 'while och pop()',
+    objective: 'Behandla jobs med en while-loop så länge len(jobs) > 0. Ta första jobbet med pop(0) och lägg det i completed. Spara till sist antalet kvarvarande jobb i remaining. Kön ska bli tom och completed ska behålla jobbens ordning.',
+    setup: 'jobs = ["databas", "bilder", "loggar"]\ncompleted = []', solution: 'while len(jobs) > 0:\n    current = jobs.pop(0)\n    completed.append(current)\nremaining = len(jobs)',
+    expected: { jobs: [], completed: ['databas', 'bilder', 'loggar'], remaining: 0 }, commands: ['while villkor:', 'lista.pop(index)', 'lista.append(värde)', 'len(lista)'],
+    hints: ['pop(0) tar bort och returnerar första jobbet. Listan blir kortare varje varv.', 'Testa len(jobs) > 0 före varje pop(). En tom kö ska hoppa över loopen.'],
+    tip: 'En while-loop passar när arbetet ska fortsätta tills kön är tom. pop() gör att stoppvillkoret till slut uppfylls.'
   },
   {
-    title: 'Dela loggarkivet', concept: 'slicing utan att ändra originalet',
-    objective: 'Skapa recent med de tre sista posterna i logs och archived med de två första. Använd slicing och behåll hela logs oförändrad.',
-    setup: 'logs = ["start", "login", "backup", "scan", "logout"]', solution: 'recent = logs[-3:]\narchived = logs[:2]',
-    expected: { logs: ['start', 'login', 'backup', 'scan', 'logout'], recent: ['backup', 'scan', 'logout'], archived: ['start', 'login'] }, commands: ['lista[start:stopp]', 'lista[-3:]', 'lista[:2]'],
-    hints: ['En slice skapar en ny lista. Stoppindex ingår inte.', 'logs[-3:] tar allt från tredje sista posten. logs[:2] tar index 0 och 1.'],
-    tip: 'Slicing låter dig dela upp data utan att plocka bort något ur källistan.'
+    title: 'Dela loggarkivet', concept: 'if/else och slicing',
+    objective: 'Om logs har fler än tre poster ska recent få de tre sista och archived få alla tidigare poster. Annars ska recent få en kopia av hela logs och archived en tom lista. Använd if/else och slicing. Behåll logs oförändrad.',
+    setup: 'logs = ["start", "login", "backup", "scan", "logout"]', solution: 'if len(logs) > 3:\n    recent = logs[-3:]\n    archived = logs[:-3]\nelse:\n    recent = logs[:]\n    archived = []',
+    expected: { logs: ['start', 'login', 'backup', 'scan', 'logout'], recent: ['backup', 'scan', 'logout'], archived: ['start', 'login'] }, commands: ['if/else', 'len(lista)', 'lista[-3:]', 'lista[:-3]', 'lista[:]'],
+    hints: ['Kontrollera längden innan du väljer hur arkivet delas.', 'logs[:-3] tar allt utom de tre sista posterna. logs[:] kopierar hela listan.'],
+    tip: 'Villkor och slicing kan tillsammans hantera både korta och långa listor utan överlappande arkiv.'
   },
   {
     title: 'Mät serverbelastningen', concept: 'sum(), len() och medelvärde',
@@ -80,36 +80,36 @@ export const DATA_EXERCISES: DataExercise[] = [
     tip: 'Filtrering bygger en ny lista med bara de värden som uppfyller ett villkor.'
   },
   {
-    title: 'Serverns identitetskort', concept: 'skapa en dictionary',
-    objective: 'Skapa registret server som en dictionary med nycklarna "name", "rack" och "online". Värdena ska vara "nova", 3 och True. rack ska vara ett tal och online ett booleskt värde.',
-    setup: '', solution: 'server = {"name": "nova", "rack": 3, "online": True}',
-    expected: { server: { name: 'nova', rack: 3, online: true } }, commands: ['register = {"nyckel": värde}'],
-    hints: ['En dictionary använder klammerparenteser { }. Varje nyckel följs av kolon och ett värde.', 'Sätt citattecken runt nycklar och textvärden, men inte runt 3 eller True.'],
-    tip: 'En dictionary slår upp värden med namn på nycklar i stället för positioner.'
+    title: 'Serverns identitetskort', concept: 'dictionary och if/else',
+    objective: 'Använd if/else: om power == 1 ska online bli True, annars False. Skapa sedan server som en dictionary med "name": "nova", "rack": 3 och "online" med värdet från variabeln online. Behåll power.',
+    setup: 'power = 1', solution: 'if power == 1:\n    online = True\nelse:\n    online = False\nserver = {"name": "nova", "rack": 3, "online": online}',
+    expected: { power: 1, online: true, server: { name: 'nova', rack: 3, online: true } }, commands: ['if/else', 'register = {"nyckel": värde}'],
+    hints: ['Bestäm online med ett villkor innan du bygger registret.', 'Nyckeln "online" är text, men värdet online utan citattecken hämtas från variabeln.'],
+    tip: 'En dictionary kan samla både fasta uppgifter och värden som programmet har räknat fram.'
   },
   {
-    title: 'Utöka lagringsutrymmet', concept: 'läsa och uppdatera en nyckel',
-    objective: 'Öka server["capacity"] med 50. Spara sedan ledigt utrymme i free genom att dra server["used"] från den nya kapaciteten. Behåll namn och använt utrymme.',
-    setup: 'server = {"name": "atlas", "capacity": 100, "used": 65}', solution: 'server["capacity"] = server["capacity"] + 50\nfree = server["capacity"] - server["used"]',
-    expected: { server: { name: 'atlas', capacity: 150, used: 65 }, free: 85 }, commands: ['register["nyckel"]', 'register["nyckel"] = värde'],
-    hints: ['Läs det gamla värdet och addera 50 innan du sparar tillbaka på samma nyckel.', 'Beräkna free efter uppdateringen, så att den nya kapaciteten används.'],
-    tip: 'Tilldelning till en befintlig nyckel uppdaterar bara det värdet.'
+    title: 'Utöka lagringsutrymmet', concept: 'while och uppdatering av nycklar',
+    objective: 'Beräkna free som kapacitet minus använt utrymme. Så länge free < 80 ska en while-loop öka server["capacity"] med 50 och räkna om free. Behåll namn och använt utrymme. Om utrymmet redan räcker ska inget läggas till.',
+    setup: 'server = {"name": "atlas", "capacity": 100, "used": 65}', solution: 'free = server["capacity"] - server["used"]\nwhile free < 80:\n    server["capacity"] = server["capacity"] + 50\n    free = server["capacity"] - server["used"]',
+    expected: { server: { name: 'atlas', capacity: 150, used: 65 }, free: 85 }, commands: ['while villkor:', 'register["nyckel"]', 'register["nyckel"] = värde'],
+    hints: ['Beräkna free före loopen så att villkoret kan testas.', 'Räkna om free inne i loopen efter varje utökning. Annars kan loopen aldrig sluta.'],
+    tip: 'En while-loop kan anpassa antalet uppdateringar efter hur mycket utrymme som saknas.'
   },
   {
-    title: 'Städa nätregistret', concept: 'lägga till och radera nycklar',
-    objective: 'Lägg till "gateway": "10.0.0.1" i network. Radera nyckeln "legacy" med del. Behåll host och ip, och spara antalet kvarvarande nycklar i field_count.',
-    setup: 'network = {"host": "nova", "ip": "10.0.0.8", "legacy": "gammal"}', solution: 'network["gateway"] = "10.0.0.1"\ndel network["legacy"]\nfield_count = len(network)',
-    expected: { network: { host: 'nova', ip: '10.0.0.8', gateway: '10.0.0.1' }, field_count: 3 }, commands: ['register["nyckel"] = värde', 'del register["nyckel"]', 'len(register)'],
-    hints: ['Tilldelning till en ny nyckel lägger till den i registret.', 'del network["legacy"] tar bort både nyckeln och dess värde.'],
-    tip: 'len() räknar antalet nycklar i en dictionary.'
+    title: 'Städa nätregistret', concept: 'if, in och del',
+    objective: 'Lägg till "gateway": "10.0.0.1" i network. Använd if för att kontrollera om "legacy" finns innan du raderar den med del. Behåll övriga fält och spara antalet kvarvarande nycklar i field_count.',
+    setup: 'network = {"host": "nova", "ip": "10.0.0.8", "legacy": "gammal"}', solution: 'network["gateway"] = "10.0.0.1"\nif "legacy" in network:\n    del network["legacy"]\nfield_count = len(network)',
+    expected: { network: { host: 'nova', ip: '10.0.0.8', gateway: '10.0.0.1' }, field_count: 3 }, commands: ['if nyckel in register:', 'register["nyckel"] = värde', 'del register["nyckel"]', 'len(register)'],
+    hints: ['"legacy" in network kontrollerar om nyckeln finns.', 'Lägg del i if-blocket så att en saknad nyckel inte orsakar KeyError.'],
+    tip: 'Ett villkor gör att samma städning fungerar även när en gammal nyckel redan har tagits bort.'
   },
   {
-    title: 'Saknad inställning', concept: 'get() med standardvärde',
-    objective: 'Läs "retries" ur config med standardvärdet 3 och spara i retries. Läs "timeout" med standardvärdet 30 och spara i timeout. Använd get(). Skapa sedan effective med dessa båda nycklar och värden. Behåll config oförändrad.',
-    setup: 'config = {"timeout": 10}', solution: 'retries = config.get("retries", 3)\ntimeout = config.get("timeout", 30)\neffective = {"retries": retries, "timeout": timeout}',
-    expected: { config: { timeout: 10 }, retries: 3, timeout: 10, effective: { retries: 3, timeout: 10 } }, commands: ['register.get("nyckel", standardvärde)'],
-    hints: ['get() ger standardvärdet bara när nyckeln saknas. Det lägger inte till nyckeln i config.', 'timeout finns redan och ska därför behålla värdet 10.'],
-    tip: 'get() låter programmet hantera saknade inställningar utan KeyError.'
+    title: 'Saknad inställning', concept: 'get() och if/elif/else',
+    objective: 'Läs retries och timeout ur config med get() och standardvärdena 3 respektive 30. Skapa effective med dessa två nycklar. Välj sedan mode med if/elif/else: retries == 0 ger "AV", annars timeout < 5 ger "SNABB", annars "NORMAL". Behåll config.',
+    setup: 'config = {"timeout": 10}', solution: 'retries = config.get("retries", 3)\ntimeout = config.get("timeout", 30)\neffective = {"retries": retries, "timeout": timeout}\nif retries == 0:\n    mode = "AV"\nelif timeout < 5:\n    mode = "SNABB"\nelse:\n    mode = "NORMAL"',
+    expected: { config: { timeout: 10 }, retries: 3, timeout: 10, effective: { retries: 3, timeout: 10 }, mode: 'NORMAL' }, commands: ['register.get("nyckel", standardvärde)', 'if/elif/else'],
+    hints: ['get() använder standardvärdet bara när nyckeln saknas. Ett befintligt värde på 0 ska behållas.', 'Kontrollera retries först. Läget AV har företräde även om timeout är kort.'],
+    tip: 'Standardvärden och prioriterade villkor gör konfigurationen användbar även när vissa inställningar saknas.'
   },
   {
     title: 'Inventera diskutrymmet', concept: 'loopa över items()',
@@ -120,20 +120,20 @@ export const DATA_EXERCISES: DataExercise[] = [
     tip: 'Med items() kan du arbeta med både servernamnet och dess mätvärde.'
   },
   {
-    title: 'Räkna larmtyper', concept: 'frekvenstabell med get()',
-    objective: 'Räkna hur många gånger varje larmtyp förekommer i events. Bygg counts med en for-loop och get(..., 0). Bara larmtyper som faktiskt förekommer ska finnas i counts. Behåll events.',
-    setup: 'events = ["disk", "nät", "disk", "cpu", "nät", "disk"]\ncounts = {}', solution: 'for event in events:\n    counts[event] = counts.get(event, 0) + 1',
-    expected: { events: ['disk', 'nät', 'disk', 'cpu', 'nät', 'disk'], counts: { disk: 3, nät: 2, cpu: 1 } }, commands: ['register.get(nyckel, 0)', 'for värde in lista:'],
-    hints: ['En ny larmtyp börjar på 0. Öka sedan dess räknare med 1.', 'Använd event som nyckel, utan citattecken: counts[event].'],
-    tip: 'En frekvenstabell växer när nya typer dyker upp och räknar dubbletter automatiskt.'
+    title: 'Räkna larmtyper', concept: 'while med index och get()',
+    objective: 'Räkna varje larmtyp i events. Använd en while-loop med index i som börjar på 0 och fortsätter medan i < len(events). Läs events[i], öka räknaren i counts med get(..., 0) och öka i med 1. Behåll events.',
+    setup: 'events = ["disk", "nät", "disk", "cpu", "nät", "disk"]\ncounts = {}', solution: 'i = 0\nwhile i < len(events):\n    event = events[i]\n    counts[event] = counts.get(event, 0) + 1\n    i = i + 1',
+    expected: { events: ['disk', 'nät', 'disk', 'cpu', 'nät', 'disk'], counts: { disk: 3, nät: 2, cpu: 1 } }, commands: ['while i < len(lista):', 'lista[i]', 'register.get(nyckel, 0)', 'i = i + 1'],
+    hints: ['Sista giltiga index är len(events) - 1. Använd <, inte <=.', 'Öka i varje varv så att nästa larm läses och loopen till slut stannar.'],
+    tip: 'En indexstyrd while-loop låter dig gå igenom en lista utan att ändra dess innehåll.'
   },
   {
-    title: 'Register inuti register', concept: 'nästlade dictionaries',
-    objective: 'Öka bara atlas kapacitet med 20 i servers. Spara sedan atlas lediga utrymme i free. Nova och övriga fält ska vara oförändrade.',
-    setup: 'servers = {"nova": {"capacity": 100, "used": 60}, "atlas": {"capacity": 80, "used": 70}}', solution: 'servers["atlas"]["capacity"] = servers["atlas"]["capacity"] + 20\nfree = servers["atlas"]["capacity"] - servers["atlas"]["used"]',
-    expected: { servers: { nova: { capacity: 100, used: 60 }, atlas: { capacity: 100, used: 70 } }, free: 30 }, commands: ['register["server"]["fält"]'],
-    hints: ['Första nyckeln väljer server, andra väljer fält i den serverns register.', 'servers["atlas"]["capacity"] är värdet som ska ändras.'],
-    tip: 'Nästlade dictionaries beskriver flera objekt med egna egenskaper.'
+    title: 'Register inuti register', concept: 'nästlade dictionaries, for och if',
+    objective: 'Gå igenom servers.items() med for. Om en server har mindre än 20 ledigt utrymme ska dess kapacitet ökas med 20 en gång. Låt övriga servrar och fält vara oförändrade. Spara därefter atlas lediga utrymme i free.',
+    setup: 'servers = {"nova": {"capacity": 100, "used": 60}, "atlas": {"capacity": 80, "used": 70}}', solution: 'for name, server in servers.items():\n    if server["capacity"] - server["used"] < 20:\n        server["capacity"] = server["capacity"] + 20\nfree = servers["atlas"]["capacity"] - servers["atlas"]["used"]',
+    expected: { servers: { nova: { capacity: 100, used: 60 }, atlas: { capacity: 100, used: 70 } }, free: 30 }, commands: ['for nyckel, värde in register.items():', 'if villkor:', 'register["server"]["fält"]'],
+    hints: ['I loopen är server den inre dictionaryn. Ändringar där uppdaterar också servers.', 'Kontrollera capacity - used för varje server. Exakt 20 ska inte ge någon utökning.'],
+    tip: 'Med for och if kan du uppdatera valda objekt i ett nästlat register.'
   },
   {
     title: 'Välj servrar för drift', concept: 'lista av dictionaries och nästlade villkor',
@@ -161,12 +161,12 @@ export const DATA_EXERCISES: DataExercise[] = [
     tip: 'Gruppering samlar flera poster under samma nyckel utan att tappa deras ordning.'
   },
   {
-    title: 'En säker testkopia', concept: 'kopiering och delade nästlade listor',
-    objective: 'Skapa trial som en kopia av config med copy(). Kopiera även den inre listan "ports" så att den blir oberoende. Lägg 8080 sist i trial["ports"] och sätt trial["mode"] till "test". Originalet config måste förbli oförändrat.',
-    setup: 'config = {"ports": [80, 443], "mode": "live"}', solution: 'trial = config.copy()\ntrial["ports"] = config["ports"].copy()\ntrial["ports"].append(8080)\ntrial["mode"] = "test"',
-    expected: { config: { ports: [80, 443], mode: 'live' }, trial: { ports: [80, 443, 8080], mode: 'test' } }, commands: ['register.copy()', 'lista.copy()'],
-    hints: ['trial = config ger två namn för samma objekt. copy() skapar en ny dictionary.', 'En ytlig kopia delar fortfarande den inre listan. Kopiera ports separat före append().'],
-    tip: 'När datastrukturer är nästlade behöver du också kopiera de inre delar som ska ändras.'
+    title: 'En säker testkopia', concept: 'copy(), for och if not in',
+    objective: 'Kopiera config till trial med copy() och kopiera också den inre listan "ports". Gå igenom proposed_ports med for. Lägg till en port sist i trial["ports"] bara om den inte redan finns där. Sätt trial["mode"] till "test". Behåll config och proposed_ports oförändrade.',
+    setup: 'config = {"ports": [80, 443], "mode": "live"}\nproposed_ports = [443, 8080, 8080, 9090]', solution: 'trial = config.copy()\ntrial["ports"] = config["ports"].copy()\nfor port in proposed_ports:\n    if port not in trial["ports"]:\n        trial["ports"].append(port)\ntrial["mode"] = "test"',
+    expected: { config: { ports: [80, 443], mode: 'live' }, proposed_ports: [443, 8080, 8080, 9090], trial: { ports: [80, 443, 8080, 9090], mode: 'test' } }, commands: ['register.copy()', 'lista.copy()', 'for värde in lista:', 'if värde not in lista:'],
+    hints: ['En ytlig kopia delar fortfarande den inre listan. Kopiera ports separat före loopen.', 'Kontrollera medlemskap i trial["ports"], som växer under körningen, så att upprepade förslag inte ger dubbletter.'],
+    tip: 'Kopiering skyddar originalet medan for och if bygger en testkonfiguration utan nya dubbletter.'
   },
   {
     title: 'Datacentret online', concept: 'slutuppdrag: filtrera, gruppera och prioritera',

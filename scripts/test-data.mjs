@@ -29,19 +29,22 @@ const solutions = levels.map(level => level.hints.at(-1).replace(/^Prova:\n/, ''
 const variants = []
 const cases = (room, rows) => rows.forEach(([inputs, expected]) => variants.push({ room, inputs, expected }))
 cases(2, [[{ servers: ['a', 'b', 'c'] }, { primary: 'a', backup: 'c' }]])
-cases(4, [[{ jobs: [] }, { jobs: ['bilder', 'loggar'], count: 2 }]])
-cases(5, [[{ jobs: ['scan'] }, { current: 'scan', jobs: ['rapport'], remaining: 1 }]])
-cases(6, [[{ logs: ['a', 'b', 'c', 'd'] }, { logs: ['a', 'b', 'c', 'd'], recent: ['b', 'c', 'd'], archived: ['a', 'b'] }]])
+cases(4, [[{ jobs: [] }, { jobs: ['bilder', 'loggar'], count: 2 }], [{ incoming: [] }, { jobs: ['databas'], count: 1 }], [{ incoming: ['a', 'b', 'c'] }, { jobs: ['databas', 'a', 'b', 'c'], count: 4 }]])
+cases(5, [[{ jobs: ['scan'] }, { jobs: [], completed: ['scan'], remaining: 0 }], [{ jobs: [] }, { jobs: [], completed: [], remaining: 0 }]])
+cases(6, [[{ logs: ['a', 'b', 'c', 'd'] }, { logs: ['a', 'b', 'c', 'd'], recent: ['b', 'c', 'd'], archived: ['a'] }], [{ logs: ['a', 'b', 'c'] }, { recent: ['a', 'b', 'c'], archived: [] }], [{ logs: ['a'] }, { recent: ['a'], archived: [] }], [{ logs: [] }, { recent: [], archived: [] }]])
 cases(7, [[{ loads: [59, 59] }, { average: 59, status: 'NORMAL' }], [{ loads: [60] }, { average: 60, status: 'HÖG' }]])
 cases(8, [[{ temperatures: [] }, { hot: [], hot_count: 0 }], [{ temperatures: [69, 70, 70, 71] }, { hot: [70, 70, 71], hot_count: 3 }]])
-cases(10, [[{ server: { name: 'x', capacity: 80, used: 70 } }, { server: { name: 'x', capacity: 130, used: 70 }, free: 60 }]])
-cases(12, [[{ config: {} }, { effective: { retries: 3, timeout: 30 } }], [{ config: { retries: 0, timeout: 0 } }, { effective: { retries: 0, timeout: 0 } }]])
+cases(9, [[{ power: 0 }, { online: false, server: { name: 'nova', rack: 3, online: false } }]])
+cases(10, [[{ server: { name: 'x', capacity: 80, used: 70 } }, { server: { name: 'x', capacity: 180, used: 70 }, free: 110 }], [{ server: { name: 'x', capacity: 150, used: 70 } }, { server: { name: 'x', capacity: 150, used: 70 }, free: 80 }]])
+cases(11, [[{ network: { host: 'x', ip: '10.0.0.9' } }, { network: { host: 'x', ip: '10.0.0.9', gateway: '10.0.0.1' }, field_count: 3 }]])
+cases(12, [[{ config: {} }, { effective: { retries: 3, timeout: 30 }, mode: 'NORMAL' }], [{ config: { retries: 0, timeout: 0 } }, { effective: { retries: 0, timeout: 0 }, mode: 'AV' }], [{ config: { timeout: 4 } }, { mode: 'SNABB' }], [{ config: { timeout: 5 } }, { mode: 'NORMAL' }]])
 cases(13, [[{ capacity: { a: 50, b: 49 } }, { total: 99, low: ['b'] }], [{ capacity: {} }, { total: 0, low: [] }]])
 cases(14, [[{ events: [] }, { counts: {} }], [{ events: ['ny', 'ny', 'annan'] }, { counts: { ny: 2, annan: 1 } }]])
+cases(15, [[{ servers: { nova: { capacity: 100, used: 90 }, atlas: { capacity: 80, used: 60 } } }, { servers: { nova: { capacity: 120, used: 90 }, atlas: { capacity: 80, used: 60 } }, free: 20 }], [{ servers: { atlas: { capacity: 80, used: 80 } } }, { servers: { atlas: { capacity: 100, used: 80 } }, free: 20 }]])
 cases(16, [[{ servers: [] }, { ready: [] }], [{ servers: [{ name: 'a', online: true, load: 70 }, { name: 'b', online: true, load: 71 }, { name: 'c', online: false, load: 0 }] }, { ready: ['a'] }]])
 cases(17, [[{ racks: [[], [70, 71]] }, { totals: [0, 141], hot_count: 1 }], [{ racks: [] }, { totals: [], hot_count: 0 }]])
 cases(18, [[{ jobs: [] }, { grouped: {} }], [{ jobs: [{ server: 'x', task: 'a' }, { server: 'x', task: 'a' }] }, { grouped: { x: ['a', 'a'] } }]])
-cases(19, [[{ config: { ports: [], mode: 'live' } }, { config: { ports: [], mode: 'live' }, trial: { ports: [8080], mode: 'test' } }]])
+cases(19, [[{ config: { ports: [], mode: 'live' } }, { config: { ports: [], mode: 'live' }, trial: { ports: [443, 8080, 9090], mode: 'test' } }], [{ proposed_ports: [] }, { config: { ports: [80, 443], mode: 'live' }, trial: { ports: [80, 443], mode: 'test' } }], [{ proposed_ports: [443, 80, 443] }, { trial: { ports: [80, 443], mode: 'test' } }]])
 cases(20, [
   [{ jobs: [] }, { report: { deployed: [], waiting: [], skipped: [], totals: {}, remaining: 100 } }],
   [{ budget: 0 }, { deployed: [], waiting: ['backup', 'scan', 'analys', 'cache'], skipped: ['index'], remaining: 0, totals: {} }],
@@ -64,24 +67,31 @@ const alternateSolutions = variants.map(({ room, inputs }) => {
   }
   return `${setup}\n${exercise.solution}`
 })
-const python = `import json, sys
+const python = `import ast, json, sys
 results = []
-for source in json.load(sys.stdin):
+for item in json.load(sys.stdin):
     events = []
     scope = {name: (lambda *args: None) for name in ['__step_call', '__step_return', '__step_print']}
-    scope['__step_state'] = lambda line, snapshot: events.append({'type': 'state', 'variables': json.loads(snapshot)})
+    def trace_state(line, snapshot):
+        if len(events) > 10000: raise RuntimeError('Possible infinite loop in data exercise')
+        events.append({'type': 'state', 'variables': json.loads(snapshot)})
+    scope['__step_state'] = trace_state
     for action in ['move', 'turn_left', 'turn_right', 'activate']:
         scope['__step_' + action] = lambda line, action=action: events.append({'type': action})
-    exec(source, scope)
-    results.append({'variables': scope['__snapshot_globals'](scope), 'events': events})
+    exec(item['source'], scope)
+    controls = sorted({type(node).__name__ for node in ast.walk(ast.parse(item['code'])) if isinstance(node, (ast.If, ast.For, ast.While))})
+    results.append({'variables': scope['__snapshot_globals'](scope), 'events': events, 'controls': controls})
 json.dump(results, sys.stdout)
 `
 const snippets = [...solutions, ...levels.map(level => level.starterCode), ...alternateSolutions]
 const result = spawnSync(process.env.DATA_TEST_PYTHON ?? 'python', ['-X', 'utf8', '-c', python], {
-  input: JSON.stringify(snippets.map(buildSource)), encoding: 'utf8', maxBuffer: 10 * 1024 * 1024
+  input: JSON.stringify(snippets.map(code => ({ code, source: buildSource(code) }))), encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, timeout: 30000
 })
 assert.equal(result.status, 0, result.stderr || result.error?.message)
 const outcomes = JSON.parse(result.stdout)
+// Every exercise after room 3 revisits control flow in its data solution.
+const requiredControls = [[], [], [], ['For'], ['While'], ['If'], ['If'], ['For', 'If'], ['If'], ['While'], ['If'], ['If'], ['For', 'If'], ['While'], ['For', 'If'], ['For', 'If'], ['For', 'If'], ['For', 'If'], ['For', 'If'], ['For', 'If']]
+requiredControls.forEach((expected, index) => assert.deepEqual(outcomes[index].controls, expected, `Room ${index + 1}: control-flow concepts`))
 const context = variables => ({ variables, consoleLines: [], ranWithoutError: true, usedInput: false })
 function replay(level, events) {
   let state = createInitialState(level.tileGrid, level.playerStart, level.mechanisms)
