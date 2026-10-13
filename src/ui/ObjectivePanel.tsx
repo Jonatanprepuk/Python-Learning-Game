@@ -19,7 +19,7 @@ export function ObjectivePanel({ level, levelIndex, totalLevels, worldTitle }: O
       </div>
       <h1 className="objective-panel__title">{level.title}</h1>
       <p className="objective-panel__objective">{level.objective}</p>
-      {level.world === 'produktionshallen' && (
+      {['produktionshallen', 'datacentret'].includes(level.world) && (
         <div className="objective-panel__commands" aria-label="Tillgängliga kommandon">
           <span>Tillgängligt:</span>
           {level.availableCommands.map(command => <code key={command}>{command}</code>)}

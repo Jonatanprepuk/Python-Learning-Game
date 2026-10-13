@@ -255,7 +255,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             readOnly={session.phase === 'running' || session.phase === 'paused' || session.phase === 'awaiting_input'}
           />
           {session.debugMode && <DebugPanel phase={session.phase} step={session.lastStep} progress={session.debugProgress} />}
-          {(level.type === 'scene' || (level.type === 'robot' && level.world === 'sakerhetssystemet')) && level.showVariables && (
+          {(level.type === 'scene' || (level.type === 'robot' && ['sakerhetssystemet', 'datacentret'].includes(level.world))) && level.showVariables && (
             <VariableInspector variables={session.currentVariables} compact />
           )}
           {level.showConsole && (
@@ -272,7 +272,9 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          {session.failureReason ?? (level.world === 'sakerhetssystemet'
+          {session.failureReason ?? (level.world === 'datacentret'
+            ? 'Kontrollera listornas ordning, registrets nycklar och värden och dina beräkningar. Aktivera panel A och nå sedan målet.'
+            : level.world === 'sakerhetssystemet'
             ? 'Inte klart än. Besök panelrutorna och använd activate() med rätt villkor. Lägg robotens rörelser i rätt gren och nå den gröna målrutan.'
             : level.type === 'robot'
             ? 'Koden kördes utan fel, men roboten nådde inte målet än. Titta på var den stannade och prova att ändra koden.'

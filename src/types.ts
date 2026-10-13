@@ -21,7 +21,7 @@ export interface Mechanism {
 export type DoorCondition = {
   variable: string
   op: '==' | '>=' | '<=' | '>' | '<'
-  value: number | string | boolean
+  value: SnapshotValue
 } | { all: DoorCondition[] }
 
 /** Which visual "world view" a level uses alongside the shared editor/hints/controls. */
@@ -34,7 +34,7 @@ export type SnapshotValue =
   | boolean
   | null
   | SnapshotValue[]
-  | { __class__: string; [attr: string]: SnapshotValue | string }
+  | { [key: string]: SnapshotValue }
 
 export interface SuccessContext {
   hasIfStatement?: boolean
