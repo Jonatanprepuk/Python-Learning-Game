@@ -1,3 +1,5 @@
+import type { SnapshotValue } from '../types'
+
 // Python preamble injected before the player's own code. Defines the
 // beginner-friendly robot/terminal API as plain Python functions that call
 // back into JS (registered as globals by the worker) to mutate/query the
@@ -83,6 +85,14 @@ def __to_jsonable(value, depth=0):
         return result
     return str(value)
 
+def __call_safely(fn, args):
+    try:
+        if fn is None:
+            return {'ok': False, 'error': 'missing_function'}
+        return {'ok': True, 'value': __to_jsonable(fn(*args))}
+    except Exception as e:
+        return {'ok': False, 'error': str(e)}
+
 def __snapshot_globals(g):
     return {
         k: __to_jsonable(v)
@@ -164,7 +174,18 @@ export function buildCodeAnalysis(userCode: string): string {
         yield from __move_lines(child)
 __json.dumps({
     'hasIfStatement': any(isinstance(node, __ast.If) for node in __nodes),
+    'hasFunctionDef': any(isinstance(node, (__ast.FunctionDef, __ast.AsyncFunctionDef)) for node in __nodes),
+    'hasWhileLoop': any(isinstance(node, __ast.While) for node in __nodes),
+    'hasForLoop': any(isinstance(node, (__ast.For, __ast.AsyncFor)) for node in __nodes),
     'forMoveLines': sorted({line for node in __nodes if isinstance(node, (__ast.For, __ast.AsyncFor)) for body in node.body for line in __move_lines(body)}),
     'whileMoveLines': sorted({line for node in __nodes if isinstance(node, __ast.While) for body in node.body for line in __move_lines(body)})
 })`
+}
+
+/** Call testFunction with each test case's positional args in the same
+ * globals the player's code just ran in, catching exceptions per-case so one
+ * broken test can't take down the others. Returns a JSON array of
+ * TestOutcome, same order as `cases`. */
+export function buildTestSource(functionName: string, cases: SnapshotValue[][]): string {
+  return `__json.dumps([__call_safely(globals().get(${JSON.stringify(functionName)}), __args) for __args in __json.loads(${JSON.stringify(JSON.stringify(cases))})])`
 }

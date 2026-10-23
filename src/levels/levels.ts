@@ -3,6 +3,7 @@ import { pickNumeric } from './valueBinding'
 import { SECURITY_LEVELS } from './securityLevels'
 import { LOOP_LEVELS } from './loopLevels'
 import { DATA_LEVELS } from './dataLevels'
+import { FUNCTION_LEVELS } from './functionLevels'
 
 // Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
 // doorCondition holds), G = goal, S = start (rendered as empty).
@@ -62,8 +63,8 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'robotlabbet',
     title: 'Robotlabbet',
-    tagline: 'Funktioner.',
-    status: 'soon'
+    tagline: '17 uppdrag med egna funktioner, plus en frivillig bonusnivå om rekursion.',
+    status: 'available'
   },
   {
     id: 'expeditionen',
@@ -251,7 +252,8 @@ export const LEVELS: LevelDefinition[] = [
   },
   ...SECURITY_LEVELS,
   ...LOOP_LEVELS,
-  ...DATA_LEVELS
+  ...DATA_LEVELS,
+  ...FUNCTION_LEVELS
 ]
 
 export function getLevel(id: number): LevelDefinition | undefined {

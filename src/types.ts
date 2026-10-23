@@ -25,7 +25,7 @@ export type DoorCondition = {
 } | { all: DoorCondition[] }
 
 /** Which visual "world view" a level uses alongside the shared editor/hints/controls. */
-export type LevelType = 'robot' | 'terminal' | 'dashboard' | 'inventory' | 'dictionary' | 'function' | 'class' | 'scene'
+export type LevelType = 'robot' | 'terminal' | 'dashboard' | 'inventory' | 'dictionary' | 'function' | 'class' | 'scene' | 'tests'
 
 /** A JSON-safe snapshot of a Python value, as produced by the worker's end-of-run inspector. */
 export type SnapshotValue =
@@ -43,6 +43,22 @@ export interface SuccessContext {
   ranWithoutError: boolean
   /** True if input() was actually called (and answered) at least once during this run. */
   usedInput: boolean
+  /** Tests-type levels: one outcome per LevelDefinition.tests entry, same order. */
+  testResults?: TestOutcome[]
+}
+
+/** One example call for a 'tests' level: args to call testFunction with, and the return value it should produce. */
+export interface TestCase {
+  description: string
+  args: SnapshotValue[]
+  expected: SnapshotValue
+}
+
+/** What calling testFunction with one TestCase's args actually produced. */
+export interface TestOutcome {
+  ok: boolean
+  value?: SnapshotValue
+  error?: string
 }
 
 export interface LevelDefinition {
@@ -66,6 +82,14 @@ export interface LevelDefinition {
   /** A robot move must execute from inside this kind of loop. */
   requiredLoop?: 'for' | 'while'
   requireIfStatement?: boolean
+  /** Code must contain at least one def (anywhere, not tied to a specific call site). */
+  requireFunctionDef?: boolean
+  /** Code must contain at least one while loop (anywhere — unlike requiredLoop, not tied to a literal move() nested inside it). */
+  requireWhileLoop?: boolean
+  /** Code must contain at least one for loop (anywhere — unlike requiredLoop, not tied to a literal move() nested inside it). */
+  requireForLoop?: boolean
+  /** Code must contain NO for/while loop at all — used to force an actual recursive solution instead of an iterative one. */
+  forbidLoops?: boolean
   /** Replace the map with a new perfect maze each time Run is pressed. */
   randomMaze?: boolean
   /** Show the print()/input() console panel next to the editor. */
@@ -82,6 +106,9 @@ export interface LevelDefinition {
   visualScene?: string
   /** Robot: a door tile stays closed until this condition on a live variable holds. */
   doorCondition?: DoorCondition
+  /** Tests: the function to call for each case (by top-level name) and the example calls to run it against. */
+  testFunction?: string
+  tests?: TestCase[]
   /**
    * Custom win condition for non-robot levels. Robot levels fall back to
    * checkWin(); other levels fall back to "ran without error" if omitted.
@@ -146,6 +173,9 @@ export interface FriendlyError {
 
 export interface RunResult {
   hasIfStatement?: boolean
+  hasFunctionDef?: boolean
+  hasWhileLoop?: boolean
+  hasForLoop?: boolean
   movedInFor?: boolean
   movedInWhile?: boolean
   ok: boolean
@@ -156,6 +186,8 @@ export interface RunResult {
   awaitingInput?: { prompt: string }
   /** End-of-run snapshot of the user's global variables (only when ok and not awaiting input). */
   finalVariables?: Record<string, SnapshotValue>
+  /** Tests-type levels: one outcome per LevelDefinition.tests entry, same order (only when ok and not awaiting input). */
+  testResults?: TestOutcome[]
 }
 
 export interface WorkerRequest {
@@ -169,6 +201,9 @@ export interface WorkerRequest {
     tileGrid: TileKind[][]
     playerStart: LevelDefinition['playerStart']
     doorCondition?: DoorCondition
+    /** Tests-type levels: the function name to call and the positional args for each test case. */
+    testFunction?: string
+    tests?: SnapshotValue[][]
   }
 }
 

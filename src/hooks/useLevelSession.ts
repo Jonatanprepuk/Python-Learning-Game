@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FriendlyError, LevelDefinition, SimWorldState, SnapshotValue, TileKind, TraceStep } from '../types'
+import type { FriendlyError, LevelDefinition, SimWorldState, SnapshotValue, TestOutcome, TileKind, TraceStep } from '../types'
 import { createInitialState, checkWin } from '../engine/simulate'
 import { usePyodideRunner } from './usePyodideRunner'
 import { mazeKey, nextUniqueMaze } from '../levels/loopMaze'
@@ -14,10 +14,15 @@ interface TracePlayback {
 
 const BASE_STEP_DELAY_MS = 420
 
+/** How long the TestsPanel takes to tick through one result — kept here, not
+ * in the panel, so the completion modal can be held back by the same amount
+ * (see finishRun) instead of popping up while checkmarks are still revealing. */
+export const TEST_REVEAL_DELAY_MS = 450
+
 export function useLevelSession(level: LevelDefinition) {
   const { status: engineStatus, run } = usePyodideRunner()
 
-  const [code, setCode] = useState(level.starterCode)
+  const [code, setCodeState] = useState(level.starterCode)
   const [completion, setCompletion] = useState<{ levelId: number; run: number } | null>(null)
   const [mazeGrid, setMazeGrid] = useState(level.tileGrid)
   const activeGrid = level.randomMaze ? mazeGrid : level.tileGrid
@@ -37,6 +42,7 @@ export function useLevelSession(level: LevelDefinition) {
   const [finalVariables, setFinalVariables] = useState<Record<string, SnapshotValue> | null>(null)
   const [lastCall, setLastCall] = useState<TraceStep['callInfo'] | null>(null)
   const [lastReturn, setLastReturn] = useState<TraceStep['returnInfo'] | null>(null)
+  const [testResults, setTestResults] = useState<TestOutcome[] | null>(null)
   const [currentVariables, setCurrentVariables] = useState<Record<string, SnapshotValue> | null>(null)
   const [failureReason, setFailureReason] = useState<string | null>(null)
   const [debugMode, setDebugMode] = useState(false)
@@ -44,13 +50,30 @@ export function useLevelSession(level: LevelDefinition) {
 
   const runToken = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputsRef = useRef<string[]>([])
   const consoleRef = useRef<string[]>([])
   const seenMazes = useRef(new Set<string>())
   const playbackRef = useRef<TracePlayback | null>(null)
   const debugModeRef = useRef(false)
+  const testsModeRef = useRef(false)
   const speedRef = useRef(speed)
   speedRef.current = speed
+
+  // Remembers what the player typed on each level, across switching between
+  // levels in the nav bar (not across a page reload). Written on every
+  // keystroke (see setCode below) rather than only at switch-time, so there's
+  // no reliance on catching the outgoing level's code in an effect closure
+  // at exactly the right moment.
+  const codeCacheRef = useRef<Map<number, string>>(new Map())
+
+  const setCode = useCallback(
+    (value: string) => {
+      codeCacheRef.current.set(level.id, value)
+      setCodeState(value)
+    },
+    [level.id]
+  )
 
   // Reset all per-level state whenever the active level changes. Keyed on
   // level.id (not the whole object) so that a level whose tileGrid mutates in
@@ -59,11 +82,12 @@ export function useLevelSession(level: LevelDefinition) {
   useEffect(() => {
     runToken.current += 1
     if (timerRef.current) clearTimeout(timerRef.current)
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
     playbackRef.current = null
     debugModeRef.current = false
     inputsRef.current = []
     consoleRef.current = []
-    setCode(level.starterCode)
+    setCode(codeCacheRef.current.get(level.id) ?? level.starterCode)
     setCompletion(null)
     setMazeGrid(level.tileGrid)
     seenMazes.current = level.randomMaze ? new Set([mazeKey(level.tileGrid)]) : new Set()
@@ -81,6 +105,7 @@ export function useLevelSession(level: LevelDefinition) {
     setLastCall(null)
     setLastReturn(null)
     setCurrentVariables(null)
+    setTestResults(null)
     setFailureReason(null)
     setDebugMode(false)
     setDebugProgress({ current: 0, total: 0 })
@@ -97,6 +122,7 @@ export function useLevelSession(level: LevelDefinition) {
   const stop = useCallback(() => {
     runToken.current += 1
     if (timerRef.current) clearTimeout(timerRef.current)
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
     playbackRef.current = null
     debugModeRef.current = false
     setPhase('idle')
@@ -119,18 +145,56 @@ export function useLevelSession(level: LevelDefinition) {
     setLastCall(null)
     setLastReturn(null)
     setCurrentVariables(null)
+    setTestResults(null)
     setFailureReason(null)
     setCompletion(null)
     setDebugProgress({ current: 0, total: 0 })
-  }, [level, activeGrid, stop])
+  }, [level, activeGrid, stop, setCode])
 
   const finishRun = useCallback(
-    (steps: TraceStep[], finalVars: Record<string, SnapshotValue> | undefined, grid: TileKind[][], hasIfStatement?: boolean, movedInFor?: boolean, movedInWhile?: boolean) => {
+    (
+      steps: TraceStep[],
+      finalVars: Record<string, SnapshotValue> | undefined,
+      grid: TileKind[][],
+      hasIfStatement?: boolean,
+      movedInFor?: boolean,
+      movedInWhile?: boolean,
+      hasFunctionDef?: boolean,
+      hasWhileLoop?: boolean,
+      hasForLoop?: boolean,
+      testResults?: TestOutcome[],
+      withTests = true,
+      token = runToken.current
+    ) => {
+      setFinalVariables(finalVars ?? null)
+      setTestResults(testResults ?? null)
+      // The last line-level 'state' snapshot never captures the very last
+      // statement's own effect (the trace event fires before a line runs),
+      // so settle on the guaranteed-complete end-of-run snapshot here.
+      if (finalVars) setCurrentVariables(finalVars)
+
+      // 'tests' levels can be run two ways: a plain "Kör kod" (withTests
+      // false) just executes the player's own code — handy for trying out
+      // calls or print()s before committing — without grading it against the
+      // level's examples. Only "Kör tester" (withTests true) actually checks
+      // the result and can flip the level to success/failed.
+      if (level.type === 'tests' && !withTests) {
+        setFailureReason(null)
+        setPhase('idle')
+        setCompletion(null)
+        setHighlightedLine(null)
+        return
+      }
+
       const finalState = steps.length ? steps[steps.length - 1].state : createInitialState(grid, level.playerStart, level.mechanisms)
       const variables = finalVars ?? {}
       let won: boolean
       const loopSatisfied = !level.requiredLoop || (level.requiredLoop === 'for' ? movedInFor : movedInWhile)
       const ifSatisfied = !level.requireIfStatement || hasIfStatement
+      const functionSatisfied = !level.requireFunctionDef || hasFunctionDef
+      const whileSatisfied = !level.requireWhileLoop || hasWhileLoop
+      const forSatisfied = !level.requireForLoop || hasForLoop
+      const noLoopsSatisfied = !level.forbidLoops || (!hasWhileLoop && !hasForLoop)
       if (level.successCheck) {
         // Robot levels with a successCheck validate BOTH the code's result and
         // that the robot actually reached the goal (e.g. a door-unlock room).
@@ -140,23 +204,50 @@ export function useLevelSession(level: LevelDefinition) {
             variables,
             consoleLines: consoleRef.current,
             ranWithoutError: true,
-            usedInput: inputsRef.current.length > 0
+            usedInput: inputsRef.current.length > 0,
+            testResults
           }) && (level.type !== 'robot' || checkWin(finalState, grid, level.requireAllResources))
       } else if (level.type === 'robot') {
         won = checkWin(finalState, grid, level.requireAllResources)
       } else {
         won = true
       }
-      won = won && Boolean(loopSatisfied) && Boolean(ifSatisfied)
-      setFailureReason(!loopSatisfied ? `Använd ${level.requiredLoop}-loopen för att faktiskt flytta roboten.` : !ifSatisfied ? 'Använd en if-sats för att välja vad roboten ska göra.' : null)
-      setFinalVariables(finalVars ?? null)
-      // The last line-level 'state' snapshot never captures the very last
-      // statement's own effect (the trace event fires before a line runs),
-      // so settle on the guaranteed-complete end-of-run snapshot here.
-      if (finalVars) setCurrentVariables(finalVars)
-      setPhase(won ? 'success' : 'failed')
-      setCompletion(won ? { levelId: level.id, run: runToken.current } : null)
-      setHighlightedLine(null)
+      won = won && Boolean(loopSatisfied) && Boolean(ifSatisfied) && Boolean(functionSatisfied) && Boolean(whileSatisfied) && Boolean(forSatisfied) && Boolean(noLoopsSatisfied)
+
+      const applyOutcome = () => {
+        if (runToken.current !== token) return
+        setFailureReason(
+          !loopSatisfied
+            ? `Använd ${level.requiredLoop}-loopen för att faktiskt flytta roboten.`
+            : !ifSatisfied
+            ? 'Använd en if-sats för att välja vad roboten ska göra.'
+            : !functionSatisfied
+            ? 'Skapa en egen funktion med def och anropa den.'
+            : !whileSatisfied
+            ? 'Använd en while-loop för att upprepa funktionen.'
+            : !forSatisfied
+            ? 'Använd en for-loop i din funktion.'
+            : !noLoopsSatisfied
+            ? 'Lös uppgiften med rekursion istället för en loop (for/while).'
+            : null
+        )
+        setPhase(won ? 'success' : 'failed')
+        setCompletion(won ? { levelId: level.id, run: runToken.current } : null)
+        setHighlightedLine(null)
+      }
+
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+      if (level.type === 'tests' && testResults && testResults.length > 0) {
+        // Hold the success/failed flip (and with it the completion modal)
+        // back until the TestsPanel has finished ticking through its
+        // checkmarks, so "uppdrag slutfört" never appears mid-reveal.
+        // +400ms covers the last item's own check-pop animation (350ms, see
+        // global.css .tests-panel__item--pass .tests-panel__icon) plus a
+        // small margin, so the modal never beats that icon to the screen.
+        completionTimerRef.current = setTimeout(applyOutcome, testResults.length * TEST_REVEAL_DELAY_MS + 400)
+      } else {
+        applyOutcome()
+      }
     },
     [level]
   )
@@ -225,13 +316,15 @@ export function useLevelSession(level: LevelDefinition) {
   )
 
   const execute = useCallback(
-    async (inputs: string[], token: number, grid: TileKind[][], debug: boolean) => {
+    async (inputs: string[], token: number, grid: TileKind[][], debug: boolean, withTests: boolean) => {
       const result = await run({
         code,
         tileGrid: grid,
         playerStart: level.playerStart,
         inputs,
-        doorCondition: level.doorCondition, mechanisms: level.mechanisms
+        doorCondition: level.doorCondition, mechanisms: level.mechanisms,
+        testFunction: withTests ? level.testFunction : undefined,
+        tests: withTests ? level.tests?.map((t) => t.args) : undefined
       })
 
       if (runToken.current !== token) return
@@ -259,16 +352,17 @@ export function useLevelSession(level: LevelDefinition) {
         return
       }
 
-      playTrace(result.steps, token, () => finishRun(result.steps, result.finalVariables, grid, result.hasIfStatement, result.movedInFor, result.movedInWhile), debug)
+      playTrace(result.steps, token, () => finishRun(result.steps, result.finalVariables, grid, result.hasIfStatement, result.movedInFor, result.movedInWhile, result.hasFunctionDef, result.hasWhileLoop, result.hasForLoop, result.testResults, withTests, token), debug)
     },
     [code, level, run, playTrace, finishRun]
   )
 
-  const startRun = useCallback((debug: boolean) => {
+  const startRun = useCallback((debug: boolean, withTests: boolean) => {
     if (phase === 'running' || phase === 'paused' || phase === 'awaiting_input') return
     runToken.current += 1
     const token = runToken.current
     debugModeRef.current = debug
+    testsModeRef.current = withTests
     setDebugMode(debug)
     setDebugProgress({ current: 0, total: 0 })
     const grid = level.randomMaze ? nextUniqueMaze(seenMazes.current) : activeGrid
@@ -285,16 +379,18 @@ export function useLevelSession(level: LevelDefinition) {
     setLastCall(null)
     setLastReturn(null)
     setCurrentVariables(null)
+    setTestResults(null)
     setFailureReason(null)
     setCompletion(null)
     setWorldState(createInitialState(grid, level.playerStart, level.mechanisms))
     setRunCount((c) => c + 1)
     setConsoleLines([])
-    void execute([], token, grid, debug)
+    void execute([], token, grid, debug, withTests)
   }, [phase, level, activeGrid, execute])
 
-  const runCode = useCallback(() => startRun(false), [startRun])
-  const debugCode = useCallback(() => startRun(true), [startRun])
+  const runCode = useCallback(() => startRun(false, level.type !== 'tests'), [startRun, level.type])
+  const debugCode = useCallback(() => startRun(true, level.type !== 'tests'), [startRun, level.type])
+  const runTests = useCallback(() => startRun(false, true), [startRun])
 
   const pause = useCallback(() => {
     const playback = playbackRef.current
@@ -335,7 +431,7 @@ export function useLevelSession(level: LevelDefinition) {
       setCurrentVariables(null)
       setWorldState(createInitialState(activeGrid, level.playerStart, level.mechanisms))
       setConsoleLines([])
-      void execute(inputsRef.current, token, activeGrid, debugModeRef.current)
+      void execute(inputsRef.current, token, activeGrid, debugModeRef.current, testsModeRef.current)
     },
     [phase, level, activeGrid, execute]
   )
@@ -368,11 +464,13 @@ export function useLevelSession(level: LevelDefinition) {
     lastCall,
     lastReturn,
     currentVariables,
+    testResults,
     failureReason,
     debugMode,
     debugProgress,
     canPause: phase === 'running' && playbackRef.current !== null,
     runCode,
+    runTests,
     debugCode,
     pause,
     resume,
