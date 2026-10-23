@@ -7,6 +7,7 @@
     "test:security": "node scripts/test-security.mjs",
     "test:loops": "node scripts/test-loops.mjs",
     "test:data": "node scripts/test-data.mjs",
+    "test:functions": "node scripts/test-functions.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

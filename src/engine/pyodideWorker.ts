@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { SNAPSHOT_SOURCE, buildSource, buildCodeAnalysis } from './pyBootstrap'
+import { SNAPSHOT_SOURCE, buildSource, buildCodeAnalysis, buildTestSource } from './pyBootstrap'
 import { translateError } from './errors'
 import {
   applyCollect,
@@ -23,6 +23,7 @@ import type {
   SimWorldState,
   SnapshotValue,
   StepType,
+  TestOutcome,
   TileKind,
   TraceStep,
   WorkerRequest,
@@ -57,11 +58,15 @@ async function init() {
 
 interface RunOutcome {
   hasIfStatement?: boolean
+  hasFunctionDef?: boolean
+  hasWhileLoop?: boolean
+  hasForLoop?: boolean
   movedInFor?: boolean
   movedInWhile?: boolean
   steps: TraceStep[]
   finalVariables?: Record<string, SnapshotValue>
   awaitingInput?: { prompt: string }
+  testResults?: TestOutcome[]
 }
 
 function runUserCode(
@@ -70,7 +75,9 @@ function runUserCode(
   playerStart: { x: number; y: number; direction: import('../types').Direction },
   inputs: string[],
   doorCondition: DoorCondition | undefined,
-  mechanisms?: import('../types').Mechanism[]
+  mechanisms?: import('../types').Mechanism[],
+  testFunction?: string,
+  testCases?: SnapshotValue[][]
 ): RunOutcome {
   let state: SimWorldState = createInitialState(grid, playerStart, mechanisms)
   const steps: TraceStep[] = []
@@ -224,6 +231,9 @@ function runUserCode(
 
     const analysis = JSON.parse(pyodide.runPython(buildCodeAnalysis(code), { globals })) as {
       hasIfStatement: boolean
+      hasFunctionDef: boolean
+      hasWhileLoop: boolean
+      hasForLoop: boolean
       forMoveLines: number[]
       whileMoveLines: number[]
     }
@@ -243,8 +253,19 @@ function runUserCode(
     const snapshotJson = pyodide.runPython(SNAPSHOT_SOURCE, { globals })
     const finalVariables = JSON.parse(snapshotJson) as Record<string, SnapshotValue>
     const successfulMoveLines = new Set(steps.filter(step => step.type === 'move' && !step.state.bumped).map(step => step.line))
+
+    let testResults: TestOutcome[] | undefined
+    if (testFunction && testCases && testCases.length > 0) {
+      const testResultsJson = pyodide.runPython(buildTestSource(testFunction, testCases), { globals })
+      testResults = JSON.parse(testResultsJson) as TestOutcome[]
+    }
+
     return {
-      steps, finalVariables, hasIfStatement: analysis.hasIfStatement,
+      steps, finalVariables, testResults,
+      hasIfStatement: analysis.hasIfStatement,
+      hasFunctionDef: analysis.hasFunctionDef,
+      hasWhileLoop: analysis.hasWhileLoop,
+      hasForLoop: analysis.hasForLoop,
       movedInFor: analysis.forMoveLines.some(line => successfulMoveLines.has(line)),
       movedInWhile: analysis.whileMoveLines.some(line => successfulMoveLines.has(line))
     }
@@ -259,15 +280,17 @@ async function handleRun(req: WorkerRequest) {
     return
   }
   try {
-    const { steps, finalVariables, awaitingInput, hasIfStatement, movedInFor, movedInWhile } = runUserCode(
+    const { steps, finalVariables, awaitingInput, hasIfStatement, hasFunctionDef, hasWhileLoop, hasForLoop, movedInFor, movedInWhile, testResults } = runUserCode(
       req.code,
       req.level.tileGrid,
       req.level.playerStart,
       req.inputs ?? [],
       req.level.doorCondition,
-      req.level.mechanisms
+      req.level.mechanisms,
+      req.level.testFunction,
+      req.level.tests
     )
-    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement, movedInFor, movedInWhile } })
+    post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement, hasFunctionDef, hasWhileLoop, hasForLoop, movedInFor, movedInWhile, testResults } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const friendly = translateError(message)

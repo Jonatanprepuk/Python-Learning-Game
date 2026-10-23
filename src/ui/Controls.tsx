@@ -13,11 +13,13 @@ interface ControlsProps {
   onReset: () => void
   engineReady: boolean
   canPause: boolean
+  /** Only for 'tests' levels: runs the current code against the level's example cases and grades it. */
+  onRunTests?: () => void
 }
 
 const SPEEDS = [0.5, 1, 2, 4]
 
-export function Controls({ phase, speed, onSpeedChange, onRun, onDebug, onPause, onResume, onStep, onStop, onReset, engineReady, canPause }: ControlsProps) {
+export function Controls({ phase, speed, onSpeedChange, onRun, onDebug, onPause, onResume, onStep, onStop, onReset, engineReady, canPause, onRunTests }: ControlsProps) {
   const busy = phase === 'running' || phase === 'paused' || phase === 'awaiting_input'
   return (
     <div className="controls">
@@ -25,10 +27,20 @@ export function Controls({ phase, speed, onSpeedChange, onRun, onDebug, onPause,
         className="btn btn--primary"
         onClick={onRun}
         disabled={busy || !engineReady}
-        title={!engineReady ? 'Python-motorn laddas...' : undefined}
+        title={!engineReady ? 'Python-motorn laddas...' : onRunTests ? 'Kör din kod fritt, utan att kontrollera mot exemplen.' : undefined}
       >
         {engineReady ? 'Kör kod' : 'Laddar Python…'}
       </button>
+      {onRunTests && (
+        <button
+          className="btn btn--accent"
+          onClick={onRunTests}
+          disabled={busy || !engineReady}
+          title="Kör koden mot exemplen och kontrollera om den klarar dem."
+        >
+          Kör tester
+        </button>
+      )}
       <button className="btn btn--ghost" onClick={onDebug} disabled={busy || !engineReady}>
         Felsök
       </button>

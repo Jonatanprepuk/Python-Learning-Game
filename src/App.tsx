@@ -15,6 +15,8 @@ import { DashboardPanel } from './ui/DashboardPanel'
 import { InventoryPanel } from './ui/InventoryPanel'
 import { DictionaryPanel } from './ui/DictionaryPanel'
 import { FunctionMachinePanel } from './ui/FunctionMachinePanel'
+import { TestsPanel } from './ui/TestsPanel'
+import { ConsoleStage } from './ui/ConsoleStage'
 import { ObjectWorkshopPanel } from './ui/ObjectWorkshopPanel'
 import { CompletionModal } from './ui/CompletionModal'
 import { HomePage } from './ui/HomePage'
@@ -168,10 +170,12 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
         return <DictionaryPanel variables={session.finalVariables} dictName={level.watchDict ?? ''} />
       case 'function':
         return <FunctionMachinePanel lastCall={session.lastCall} lastReturn={session.lastReturn} />
+      case 'tests':
+        return <TestsPanel tests={level.tests ?? []} testResults={session.testResults} />
       case 'class':
         return <ObjectWorkshopPanel variables={session.finalVariables} />
       case 'terminal':
-        return level.showVariables ? <VariableInspector variables={session.finalVariables} /> : null
+        return <ConsoleStage lines={session.consoleLines} />
       case 'scene':
         return (
           <ControlCenterScene
@@ -295,6 +299,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
           speed={session.speed}
           onSpeedChange={session.setSpeed}
           onRun={session.runCode}
+          onRunTests={level.type === 'tests' ? session.runTests : undefined}
           onDebug={session.debugCode}
           onPause={session.pause}
           onResume={session.resume}
