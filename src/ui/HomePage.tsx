@@ -7,6 +7,7 @@ interface HomePageProps {
   completed: Set<number>
   onEnter: (worldId: string) => void
   onOpenPlayground: () => void
+  onOpenForensics: () => void
 }
 
 // One CSA-palettfärg per värld — en liten identitet innan innehållet finns,
@@ -21,7 +22,7 @@ const WORLD_ACCENTS: Record<string, string> = {
   'autonoma-system': '#d4c394' // beige / ljusguld
 }
 
-export function HomePage({ worlds, levels, completed, onEnter, onOpenPlayground }: HomePageProps) {
+export function HomePage({ worlds, levels, completed, onEnter, onOpenPlayground, onOpenForensics }: HomePageProps) {
   return (
     <div className="home">
       <div className="home__hero">
@@ -67,6 +68,7 @@ export function HomePage({ worlds, levels, completed, onEnter, onOpenPlayground 
       <button className="home__playground-link" onClick={onOpenPlayground}>
         Vill du bara testa Python fritt? Öppna Lekplatsen →
       </button>
+      <details className="home__side-projects"><summary>Fler övningar</summary><button onClick={onOpenForensics}>Öppna forensiklabbet →</button></details>
     </div>
   )
 }

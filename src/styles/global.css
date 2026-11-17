@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
+.home__side-projects { margin: 8px auto 16px; text-align: center; color: #a9bac5; font-size: 11px; }
+.home__side-projects summary { cursor: pointer; width: fit-content; margin: auto; padding: 8px 14px; }
+.home__side-projects button { cursor: pointer; border: 1px solid #3d5568; border-radius: 4px; background: #1a232c; color: #cce3da; padding: 10px 15px; margin-top: 6px; }
+
 :root {
   /* Surfaces — dark charcoal with a faint blue cast, clear steps apart so
      panels read distinctly instead of blending together */
