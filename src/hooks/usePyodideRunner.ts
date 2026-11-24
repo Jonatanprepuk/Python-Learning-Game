@@ -6,6 +6,7 @@ const RUN_TIMEOUT_MS = 10000
 export type RunnerStatus = 'loading' | 'ready' | 'error'
 
 interface RunArgs {
+  expedition?: { energy: number }
   mechanisms?: import('../types').Mechanism[]
   code: string
   tileGrid: TileKind[][]
@@ -109,7 +110,7 @@ export function usePyodideRunner() {
             tileGrid: args.tileGrid,
             playerStart: args.playerStart,
             doorCondition: args.doorCondition,
-            mechanisms: args.mechanisms,
+            mechanisms: args.mechanisms, expedition: args.expedition,
             testFunction: args.testFunction,
             tests: args.tests
           }

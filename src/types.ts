@@ -1,6 +1,6 @@
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
-export type TileKind = 'empty' | 'wall' | 'resource' | 'goal' | 'door'
+export type TileKind = 'empty' | 'wall' | 'resource' | 'goal' | 'door' | 'rock' | 'gap' | 'storm' | 'beacon'
 
 export interface GridPos {
   x: number
@@ -62,6 +62,7 @@ export interface TestOutcome {
 }
 
 export interface LevelDefinition {
+  expedition?: { energy: number }
   mechanisms?: Mechanism[]
   id: number
   world: string
@@ -69,6 +70,8 @@ export interface LevelDefinition {
   title: string
   concept: string
   objective: string
+  instructions?: string[]
+  commandHelp?: { code: string; description: string }[]
   width: number
   height: number
   /** Row-major grid of tile kinds, tileGrid[y][x] */
@@ -117,6 +120,8 @@ export interface LevelDefinition {
 }
 
 export interface SimWorldState {
+  energy?: number
+  cleared?: string[]
   mechanisms?: Mechanism[]
   activated?: string[]
   robot: { x: number; y: number; direction: Direction }
@@ -130,6 +135,8 @@ export interface SimWorldState {
 }
 
 export type StepType =
+  | 'scan'
+  | 'tool'
   | 'activate'
   | 'move'
   | 'turn_left'
@@ -197,6 +204,7 @@ export interface WorkerRequest {
   /** Answers already given to input() calls for this run, in call order. */
   inputs?: string[]
   level?: {
+    expedition?: { energy: number }
     mechanisms?: Mechanism[]
     tileGrid: TileKind[][]
     playerStart: LevelDefinition['playerStart']

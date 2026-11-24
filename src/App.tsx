@@ -259,7 +259,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             readOnly={session.phase === 'running' || session.phase === 'paused' || session.phase === 'awaiting_input'}
           />
           {session.debugMode && <DebugPanel phase={session.phase} step={session.lastStep} progress={session.debugProgress} />}
-          {(level.type === 'scene' || (level.type === 'robot' && ['sakerhetssystemet', 'datacentret'].includes(level.world))) && level.showVariables && (
+          {(level.type === 'scene' || (level.type === 'robot' && ['sakerhetssystemet', 'datacentret', 'expeditionen'].includes(level.world))) && level.showVariables && (
             <VariableInspector variables={session.currentVariables} compact />
           )}
           {level.showConsole && (
@@ -276,7 +276,9 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
 
       {session.phase === 'failed' && (
         <div className="not-there-yet">
-          {session.failureReason ?? (level.world === 'datacentret'
+          {session.failureReason ?? (level.world === 'expeditionen'
+            ? 'Nå målet, samla alla energiceller och reparera alla reläer. Kontrollera batteriet och använd rätt verktyg framför hindret. Återställ för ett nytt försök.'
+            : level.world === 'datacentret'
             ? 'Kontrollera listornas ordning, registrets nycklar och värden och dina beräkningar. Aktivera panel A och nå sedan målet.'
             : level.world === 'sakerhetssystemet'
             ? 'Inte klart än. Besök panelrutorna och använd activate() med rätt villkor. Lägg robotens rörelser i rätt gren och nå den gröna målrutan.'

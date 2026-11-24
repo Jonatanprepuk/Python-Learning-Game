@@ -4,6 +4,7 @@ import { SECURITY_LEVELS } from './securityLevels'
 import { LOOP_LEVELS } from './loopLevels'
 import { DATA_LEVELS } from './dataLevels'
 import { FUNCTION_LEVELS } from './functionLevels'
+import { EXPEDITION_LEVELS } from './expeditionLevels'
 
 // Small ASCII helper: # = wall, . = empty, D = door (opens once its level's
 // doorCondition holds), G = goal, S = start (rendered as empty).
@@ -69,8 +70,8 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'expeditionen',
     title: 'Expeditionen',
-    tagline: 'Kombinerade uppdrag.',
-    status: 'soon'
+    tagline: '12 robotexpeditioner med verktyg, sensorer och energiplanering.',
+    status: 'available'
   },
   {
     id: 'autonoma-system',
@@ -253,7 +254,8 @@ export const LEVELS: LevelDefinition[] = [
   ...SECURITY_LEVELS,
   ...LOOP_LEVELS,
   ...DATA_LEVELS,
-  ...FUNCTION_LEVELS
+  ...FUNCTION_LEVELS,
+  ...EXPEDITION_LEVELS
 ]
 
 export function getLevel(id: number): LevelDefinition | undefined {

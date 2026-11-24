@@ -3,6 +3,8 @@ import { SNAPSHOT_SOURCE, buildSource, buildCodeAnalysis, buildTestSource } from
 import { translateError } from './errors'
 import {
   applyCollect,
+  applyTool,
+  scanAhead,
   applyActivate,
   applyMove,
   applyTurnLeft,
@@ -77,9 +79,10 @@ function runUserCode(
   doorCondition: DoorCondition | undefined,
   mechanisms?: import('../types').Mechanism[],
   testFunction?: string,
-  testCases?: SnapshotValue[][]
+  testCases?: SnapshotValue[][],
+  expedition?: { energy: number }
 ): RunOutcome {
-  let state: SimWorldState = createInitialState(grid, playerStart, mechanisms)
+  let state: SimWorldState = createInitialState(grid, playerStart, mechanisms, expedition)
   const steps: TraceStep[] = []
   let stepCount = 0
   let inputIndex = 0
@@ -126,6 +129,8 @@ function runUserCode(
   const globals: any = pyodide.toPy({})
 
   try {
+    globals.set('__step_scan', (line: number) => { guard(); pushStep('scan', line); return JSON.stringify(scanAhead(state, grid)) })
+    globals.set('__step_tool', (line: number, name: unknown, power: unknown) => { guard(); state = applyTool(state, grid, name, power); pushStep('tool', line) })
     globals.set('__step_activate', (rawLine: number) => {
       guard()
       state = applyActivate(state, liveVariables)
@@ -288,7 +293,8 @@ async function handleRun(req: WorkerRequest) {
       req.level.doorCondition,
       req.level.mechanisms,
       req.level.testFunction,
-      req.level.tests
+      req.level.tests,
+      req.level.expedition
     )
     post({ id: req.id, type: 'result', result: { ok: true, steps, finalVariables, awaitingInput, hasIfStatement, hasFunctionDef, hasWhileLoop, hasForLoop, movedInFor, movedInWhile, testResults } })
   } catch (err) {

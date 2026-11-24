@@ -47,7 +47,8 @@ export function tileAt(grid: TileKind[][], x: number, y: number): TileKind {
 export function createInitialState(
   tileGrid: TileKind[][],
   start: { x: number; y: number; direction: Direction },
-  mechanisms?: Mechanism[]
+  mechanisms?: Mechanism[],
+  expedition?: { energy: number }
 ): SimWorldState {
   const resources: GridPos[] = []
   tileGrid.forEach((row, y) => {
@@ -56,6 +57,8 @@ export function createInitialState(
     })
   })
   return {
+    energy: expedition?.energy,
+    cleared: [],
     mechanisms,
     activated: [],
     robot: { x: start.x, y: start.y, direction: start.direction },
@@ -70,6 +73,8 @@ export function createInitialState(
 
 function clone(state: SimWorldState): SimWorldState {
   return {
+    energy: state.energy,
+    cleared: [...(state.cleared ?? [])],
     mechanisms: state.mechanisms,
     activated: [...(state.activated ?? [])],
     robot: { ...state.robot },
@@ -107,6 +112,11 @@ export function isBlocked(grid: TileKind[][], pos: GridPos, doorsOpen: boolean):
 export function applyMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): SimWorldState {
   const next = clone(state)
   const target = aheadPosition(state)
+  if (state.energy !== undefined && (state.energy < 1 || expeditionBlocked(state, grid, target))) {
+    next.bumped = true
+    next.message = state.energy < 1 ? 'Batteriet är tomt. Återställ och planera vägen via energicellerna.' : 'Hinder framför roboten. Använd scan() och rätt verktyg innan du går vidare.'
+    return next
+  }
   const obstacle = closedMechanism(state, target)
   if (obstacle) {
     next.bumped = true
@@ -123,6 +133,7 @@ export function applyMove(state: SimWorldState, grid: TileKind[][], doorsOpen: b
   }
   next.robot.x = target.x
   next.robot.y = target.y
+  if (next.energy !== undefined) next.energy -= 1
   return next
 }
 
@@ -147,17 +158,18 @@ export function applyCollect(state: SimWorldState): SimWorldState {
   }
   next.resources.splice(idx, 1)
   next.collected = state.collected + 1
+  if (next.energy !== undefined) next.energy += 5
   return next
 }
 
 export function queryCanMove(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
-  return !closedMechanism(state, aheadPosition(state)) && !isBlocked(grid, aheadPosition(state), doorsOpen)
+  return !expeditionBlocked(state, grid, aheadPosition(state)) && !closedMechanism(state, aheadPosition(state)) && !isBlocked(grid, aheadPosition(state), doorsOpen)
 }
 
 function canMoveInDirection(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean, direction: Direction): boolean {
   const delta = DELTAS[direction]
   const target = { x: state.robot.x + delta.x, y: state.robot.y + delta.y }
-  return !closedMechanism(state, target) && !isBlocked(grid, target, doorsOpen)
+  return !expeditionBlocked(state, grid, target) && !closedMechanism(state, target) && !isBlocked(grid, target, doorsOpen)
 }
 
 export function queryCanMoveLeft(state: SimWorldState, grid: TileKind[][], doorsOpen: boolean): boolean {
@@ -183,7 +195,7 @@ export function queryStepsToGoal(state: SimWorldState, grid: TileKind[][], doors
     for (const delta of Object.values(DELTAS)) {
       const next = { x: current.x + delta.x, y: current.y + delta.y }
       const key = `${next.x},${next.y}`
-      if (seen.has(key) || closedMechanism(state, next) || isBlocked(grid, next, doorsOpen)) continue
+      if (seen.has(key) || expeditionBlocked(state, grid, next) || closedMechanism(state, next) || isBlocked(grid, next, doorsOpen)) continue
       seen.add(key)
       queue.push({ ...next, distance: current.distance + 1 })
     }
@@ -208,6 +220,7 @@ export function checkWin(
 ): boolean {
   const onGoal = tileAt(grid, state.robot.x, state.robot.y) === 'goal'
   if (!onGoal) return false
+  if (state.energy !== undefined && grid.some((row, y) => row.some((tile, x) => tile === 'beacon' && !state.cleared?.includes(`${x},${y}`)))) return false
   if (state.mechanisms?.some(item => item.required !== false && !state.activated?.includes(item.id))) return false
   if (requireAllResources && state.collected < state.totalResources) return false
   return true
@@ -228,6 +241,43 @@ export function applyActivate(state: SimWorldState, variables: Record<string, Sn
   } else {
     next.activated = [...new Set([...(state.activated ?? []), ...matching.map(item => item.id)])]
     next.message = `${matching.map(item => item.label).join(', ')} är klar. Passagen är säker.`
+  }
+  return next
+}
+
+export const EXPEDITION_TOOLS = {
+  rock: { tool: 'drill', power: 3, label: 'Borra sten' },
+  gap: { tool: 'bridge', power: 2, label: 'Bygg bro' },
+  storm: { tool: 'shield', power: 4, label: 'Avskärma storm' },
+  beacon: { tool: 'repair', power: 1, label: 'Reparera relä' }
+} as const
+
+export function expeditionBlocked(state: SimWorldState, grid: TileKind[][], pos: GridPos): boolean {
+  return tileAt(grid, pos.x, pos.y) in EXPEDITION_TOOLS && !state.cleared?.includes(`${pos.x},${pos.y}`)
+}
+
+export function scanAhead(state: SimWorldState, grid: TileKind[][]) {
+  const pos = aheadPosition(state)
+  const kind = tileAt(grid, pos.x, pos.y)
+  const obstacle = EXPEDITION_TOOLS[kind as keyof typeof EXPEDITION_TOOLS]
+  const blocked = expeditionBlocked(state, grid, pos)
+  return { kind, blocked, tool: blocked ? obstacle.tool : '', power: blocked ? obstacle.power : 0, energy: state.energy ?? 0 }
+}
+
+export function applyTool(state: SimWorldState, grid: TileKind[][], name: unknown, power: unknown): SimWorldState {
+  const next = clone(state)
+  const target = aheadPosition(state)
+  const reading = scanAhead(state, grid)
+  if (state.energy === undefined || !reading.blocked) {
+    next.message = 'Inget verktyg behövs på rutan framför roboten.'
+  } else if (name !== reading.tool || typeof power !== 'number' || !Number.isFinite(power) || power !== reading.power) {
+    next.message = `Fel verktyg eller effekt. scan() visar rätt tool och power.`
+  } else if (state.energy < power) {
+    next.message = 'För lite energi för verktyget. Hämta en energicell eller välj en kortare väg.'
+  } else {
+    next.energy = state.energy - power
+    next.cleared = [...(state.cleared ?? []), `${target.x},${target.y}`]
+    next.message = `${name}: hindret är åtgärdat (−${power} energi).`
   }
   return next
 }

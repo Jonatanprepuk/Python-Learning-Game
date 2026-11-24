@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LevelDefinition, SimWorldState, TraceStep } from '../types'
 import { Robot } from './Robot'
+import { EXPEDITION_TOOLS } from '../engine/simulate'
 
 interface Effect {
   id: number
@@ -32,8 +33,8 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
     const el = containerRef.current
     if (!el) return
     const measure = () => {
-      const w = el.clientWidth
-      const h = el.clientHeight
+      const w = el.clientWidth - (level.expedition ? 40 : 0)
+      const h = el.clientHeight - (level.expedition ? 150 : 0)
       const size = Math.floor(Math.min(w / level.width, h / level.height))
       setCellSize(Math.max(MIN_CELL, Math.min(MAX_CELL, size)))
     }
@@ -41,7 +42,7 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [level.width, level.height])
+  }, [level.width, level.height, level.expedition])
 
   useEffect(() => {
     if (!lastStep || lastStep === lastStepSeen.current) return
@@ -63,7 +64,7 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
   const bumping = effects.some((e) => e.kind === 'bump')
 
   return (
-    <div className="world-wrapper" ref={containerRef}>
+    <div className={`world-wrapper${level.expedition ? ' world-wrapper--expedition' : ''}`} ref={containerRef}>
       <div
         className="world-grid"
         style={{
@@ -81,15 +82,18 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
             const obstacle = level.mechanisms?.find(m => m.barriers.some(p => p.x === x && p.y === y))
             const panel = level.mechanisms?.find(m => m.station.x === x && m.station.y === y)
             const cleared = obstacle && worldState.activated?.includes(obstacle.id)
+            const terrain = EXPEDITION_TOOLS[kind as keyof typeof EXPEDITION_TOOLS]
+            const restored = worldState.cleared?.includes(`${x},${y}`)
             return (
               <div
                 key={`${x}-${y}`}
-                title={panel ? `Panel ${panel.id}: ${panel.label} — activate()` : obstacle ? `${obstacle.label}${cleared ? ' — säker' : ' — blockerad'}` : undefined}
-                className={`tile tile--${displayKind}${obstacle ? ` obstacle obstacle--${obstacle.kind}${cleared ? ' obstacle--clear' : ''}` : ''}${doorOpen ? ' tile--door-open' : ''}${
+                title={terrain ? `${terrain.label}: ${terrain.tool}, effekt ${terrain.power}${restored ? ' — klart' : ''}` : panel ? `Panel ${panel.id}: ${panel.label} — activate()` : obstacle ? `${obstacle.label}${cleared ? ' — säker' : ' — blockerad'}` : undefined}
+                className={`tile tile--${displayKind}${terrain ? ` terrain${restored ? ' terrain--restored' : ''}` : ''}${obstacle ? ` obstacle obstacle--${obstacle.kind}${cleared ? ' obstacle--clear' : ''}` : ''}${doorOpen ? ' tile--door-open' : ''}${
                   editable ? ' tile--editable' : ''
                 }`}
                 onClick={editable ? () => onTileClick?.(x, y) : undefined}
               >
+                {terrain && <span className="terrain__icon">{restored ? '✓' : ({ rock: '◆', gap: '═', storm: 'ϟ', beacon: '⌁' })[kind as keyof typeof EXPEDITION_TOOLS]}</span>}
                 {panel && <span className={`station${worldState.activated?.includes(panel.id) ? ' station--active' : ''}`}>{panel.id}</span>}
                 {obstacle && <span className="obstacle__symbol">{cleared ? '✓' : ({ door: '▥', laser: '╳', heat: '≋', water: '≈', bridge: '═', lift: '↕', charger: 'ϟ' })[obstacle.kind]}</span>}
                 {displayKind === 'resource' && <span className="tile__resource" />}
@@ -124,12 +128,24 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
               height: cellSize
             }}
           >
-            {fx.kind === 'collect' && <span className="fx__label">+1</span>}
+            {fx.kind === 'collect' && <span className="fx__label">{level.expedition ? '+5 energi' : '+1'}</span>}
           </div>
         ))}
       </div>
 
       <div className="world-hud">
+        {level.expedition && <div className="expedition-hud">
+          <strong className={(worldState.energy ?? 0) < 5 ? 'energy-low' : ''}>⚡ {worldState.energy ?? level.expedition.energy} energi</strong>
+          <span>Rörelse −1 · Cell +5 · Verktyg −effekt</span>
+          {level.tileGrid.flat().includes('beacon') && <span>Reläer {level.tileGrid.flatMap((row, y) => row.map((t, x) => t === 'beacon' && worldState.cleared?.includes(`${x},${y}`))).filter(Boolean).length} / {level.tileGrid.flat().filter(t => t === 'beacon').length}</span>}
+          <details><summary>Robotens förmågor och karttecken</summary>
+            <p>Stå direkt framför hindret och vänd roboten mot det. use_tool(namn, effekt) använder ett verktyg utan att flytta roboten. Namnet skrivs inom citattecken, effekten som ett tal. Gå sedan fram med move().</p>
+            <p>◆ Sten: <code>use_tool("drill", 3)</code> · ═ Schakt: <code>use_tool("bridge", 2)</code> · ϟ Storm: <code>use_tool("shield", 4)</code> · ⌁ Relä: <code>use_tool("repair", 1)</code></p>
+            <p><code>data = scan()</code> läser rutan framför roboten. data["blocked"] anger om ett verktyg behövs, data["tool"] ger namnet och data["power"] ger effekten. kind är rutans typ och energy är robotens återstående energi.</p>
+            <p>Gå till energicellen och använd collect(). Alla celler och reläer krävs. Nå den gröna målrutan. Återställ om energin tar slut.</p>
+          </details>
+          {lastStep?.type === 'tool' && <span role="status">{lastStep.note}</span>}
+        </div>}
         {level.mechanisms && <div className="mechanism-legend">
           <span>Panelruta → activate() · Grönt mål = utgång</span>
           {level.mechanisms.map(m => <span key={m.id} className={`mechanism-key mechanism-key--${m.kind}`}>
