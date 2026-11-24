@@ -7,9 +7,9 @@ const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
 const bundle = await build({ stdin: { contents: 'export { LEVELS } from "./src/levels/levels"; export * from "./src/engine/simulate"; export { buildSource } from "./src/engine/pyBootstrap";', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'esm' })
 const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`)
 const levels = api.LEVELS.filter(l => l.world === 'expeditionen')
-assert.equal(levels.length, 12)
+assert.equal(levels.length, 16)
 assert.equal(new Set(api.LEVELS.map(l => l.id)).size, api.LEVELS.length)
-assert.equal(new Set(levels.map(l => JSON.stringify(l.tileGrid))).size, 12)
+assert.equal(new Set(levels.map(l => JSON.stringify(l.tileGrid))).size, 16)
 const harness = `import sys, json
 payload = json.loads(sys.stdin.readline())
 def bridge(name, args):
@@ -68,11 +68,58 @@ for (const level of levels) {
   const source = level.hints.at(-1).replace(/^Prova:\n/, '')
   const outcome = await run(level, source)
   assert.equal(outcome.bumps, 0, `${level.title}: collisions`)
-  assert.equal(api.checkWin(outcome.state, level.tileGrid, true), true, `${level.title}: goal/resources/relays`)
+  assert.equal(api.checkWin(outcome.state, level.tileGrid, level.requireAllResources), true, `${level.title}: goal/resources/relays`)
   assert.ok(level.successCheck(outcome.context), `${level.title}: objective`)
   assert.ok(outcome.state.energy >= 0)
+  if (level.id >= 94) {
+    // Charging must matter physically, not just be an arbitrary win condition.
+    if (level.tileGrid.some(row => row.includes('resource'))) {
+      const emptyCells = { ...level, tileGrid: level.tileGrid.map(row => row.map(t => t === 'resource' ? 'empty' : t)) }
+      const uncharged = await run(emptyCells, source)
+      assert.equal(api.checkWin(uncharged.state, emptyCells.tileGrid, false), false, `${level.title}: charging must be necessary`)
+    }
+    assert.equal(api.checkWin({ ...outcome.state, cleared: [] }, level.tileGrid, false), false, `${level.title}: relays must be repaired`)
+    // Each new map must have junctions, not merely a winding corridor.
+    let junctions = 0
+    level.tileGrid.forEach((row, y) => row.forEach((t, x) => {
+      if (t !== 'wall' && [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].filter(([nx,ny]) => level.tileGrid[ny]?.[nx] && level.tileGrid[ny][nx] !== 'wall').length >= 3) junctions++
+    }))
+    assert.ok(junctions >= 2, `${level.title}: branching paths`)
+  }
   const starter = await run(level, level.starterCode)
-  assert.equal(api.checkWin(starter.state, level.tileGrid, true), false)
+  assert.equal(api.checkWin(starter.state, level.tileGrid, level.requireAllResources), false)
+  if (level.id === 98 || level.id === 99) {
+    assert.notDeepEqual([starter.state.robot.x, starter.state.robot.y], [level.playerStart.x, level.playerStart.y], 'Debug starter must actually move')
+    if (level.id === 98) {
+      assert.equal(starter.state.energy, 0, 'Energy starter must run out of energy')
+      assert.equal(api.queryAtGoal(starter.state, level.tileGrid), false)
+    } else {
+      assert.equal(starter.bumps, 0)
+      assert.equal(api.queryAtGoal(starter.state, level.tileGrid), true)
+      assert.equal(starter.state.energy, 6, 'Relay starter must have energy left after charging')
+      const repaired = level.tileGrid.flatMap((row,y) => row.map((tile,x) => tile === 'beacon' && starter.state.cleared.includes(`${x},${y}`))).filter(Boolean).length
+      assert.equal(repaired, 2, 'Exactly one of three relays must be forgotten')
+    }
+    assert.ok(outcome.state.collected >= 5, 'Solution must include multiple charging stops')
+    // Independently combine both first-area choices with both second-area choices.
+    const firstRoutes = level.id === 98
+      ? [[['N',3],['E',4],['S',3]], [['S',3],['E',4],['N',3]]]
+      : [[['N',3],['E',4],['S',3]], [['S',3],['E',4],['N',3],['N',3],['W',2],['E',2],['S',3]]]
+    const secondRoutes = level.id === 98
+      ? [[['N',2],['E',4],['S',2]], [['S',3],['E',4],['N',3]]]
+      : [[['N',2],['E',3],['S',2]], [['S',2],['E',3],['N',2]]]
+    for (const first of firstRoutes) for (const second of secondRoutes) {
+      const route = [['E',2], ...first, ['E',2], ...second, ['E',level.id === 98 ? 4 : 3]]
+      const alternate = await run(level, level.starterCode.replace(/^route = .*$/m, `route = ${JSON.stringify(route)}`))
+      assert.equal(alternate.bumps, 0, `${level.title}: route ${JSON.stringify(route)}`)
+      assert.equal(api.checkWin(alternate.state, level.tileGrid, false), true, 'Alternative route must win')
+      assert.ok(level.successCheck(alternate.context))
+      // Individually verify that each relay is mandatory, even at the goal.
+      level.tileGrid.forEach((row,y) => row.forEach((tile,x) => {
+        if (tile === 'beacon') assert.equal(api.checkWin({ ...alternate.state, cleared: alternate.state.cleared.filter(p => p !== `${x},${y}`) }, level.tileGrid, false), false)
+      }))
+    }
+  }
   console.log(`PASS ${level.id}: ${level.title} (${outcome.state.energy} energy left)`)
 }
 // The first mission must be solvable by the single edit its instructions request.

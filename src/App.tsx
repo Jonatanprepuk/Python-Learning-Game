@@ -277,7 +277,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
       {session.phase === 'failed' && (
         <div className="not-there-yet">
           {session.failureReason ?? (level.world === 'expeditionen'
-            ? 'Nå målet, samla alla energiceller och reparera alla reläer. Kontrollera batteriet och använd rätt verktyg framför hindret. Återställ för ett nytt försök.'
+            ? `Nå målet och reparera alla reläer. ${level.requireAllResources === false ? 'Välj laddstopp så att energin räcker och kontrollera uppgiftens beräkningar.' : 'Samla alla energiceller.'} Kontrollera batteriet och använd rätt verktyg framför hindret. Återställ för ett nytt försök.`
             : level.world === 'datacentret'
             ? 'Kontrollera listornas ordning, registrets nycklar och värden och dina beräkningar. Aktivera panel A och nå sedan målet.'
             : level.world === 'sakerhetssystemet'

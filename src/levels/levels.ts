@@ -70,7 +70,7 @@ export const WORLDS: WorldMeta[] = [
   {
     id: 'expeditionen',
     title: 'Expeditionen',
-    tagline: '12 robotexpeditioner med verktyg, sensorer och energiplanering.',
+    tagline: '16 robotexpeditioner med verktyg, vägval och energiplanering.',
     status: 'available'
   },
   {

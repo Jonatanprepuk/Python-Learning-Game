@@ -142,7 +142,7 @@ export function GameWorld({ level, worldState, lastStep, editable, onTileClick }
             <p>Stå direkt framför hindret och vänd roboten mot det. use_tool(namn, effekt) använder ett verktyg utan att flytta roboten. Namnet skrivs inom citattecken, effekten som ett tal. Gå sedan fram med move().</p>
             <p>◆ Sten: <code>use_tool("drill", 3)</code> · ═ Schakt: <code>use_tool("bridge", 2)</code> · ϟ Storm: <code>use_tool("shield", 4)</code> · ⌁ Relä: <code>use_tool("repair", 1)</code></p>
             <p><code>data = scan()</code> läser rutan framför roboten. data["blocked"] anger om ett verktyg behövs, data["tool"] ger namnet och data["power"] ger effekten. kind är rutans typ och energy är robotens återstående energi.</p>
-            <p>Gå till energicellen och använd collect(). Alla celler och reläer krävs. Nå den gröna målrutan. Återställ om energin tar slut.</p>
+            <p>Gå till energicellen och använd collect(). {level.requireAllResources === false ? 'Cellerna är valfria laddstopp; alla reläer krävs.' : 'Alla celler och reläer krävs.'} Nå den gröna målrutan. Återställ om energin tar slut.</p>
           </details>
           {lastStep?.type === 'tool' && <span role="status">{lastStep.note}</span>}
         </div>}

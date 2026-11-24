@@ -1,3 +1,4 @@
+import { ADVANCED_EXPEDITION_LEVELS } from './expeditionAdvanced'
 import type { LevelDefinition, TileKind } from '../types'
 
 const manual = `Stå på rutan direkt före hindret och vänd roboten mot det. use_tool("drill", 3) borrar sten, use_tool("bridge", 2) bygger bro, use_tool("shield", 4) säkrar storm och use_tool("repair", 1) reparerar relä. Första argumentet är verktygets namn inom citattecken, det andra är dess effekt som ett tal. Verktyget flyttar inte roboten: använd move() efteråt. Ett steg kostar 1 energi, ett verktyg sin effekt. collect() på en gul cell ger +5. Nå det gröna målet, samla banans celler och reparera dess reläer.`
@@ -123,10 +124,11 @@ const missions: Mission[] = [
     setup: 'mission = {\n    "name": "UTPOST",\n    "legs": [\n        {"steps": 4, "turn": "V"},\n        {"steps": 4, "turn": "H"},\n        {"steps": 3, "turn": "H"},\n        {"steps": 4, "turn": "V"},\n        {"steps": 2, "turn": "STOP"}\n    ]\n}\n\n' + pilot,
     starter: '# TODO: kör etapperna och välj sväng utifrån uppdragsdata.\n# Skriv rapporten efter loopen.',
     solution: 'for leg in mission["legs"]:\n    fram(leg["steps"])\n    if leg["turn"] == "V":\n        turn_left()\n    elif leg["turn"] == "H":\n        turn_right()\nprint(mission["name"] + " online")',
-    hint: 'mission["legs"] är en lista av dictionaries. Varje leg har steps och turn. Ingen else behövs: STOP ska inte ge någon sväng.' }
+    hint: 'mission["legs"] är en lista av dictionaries. Varje leg har steps och turn. Ingen else behövs: STOP ska inte ge någon sväng.' },
+
 ]
 
-export const EXPEDITION_LEVELS: LevelDefinition[] = missions.map((m, index) => {
+export const EXPEDITION_LEVELS: LevelDefinition[] = missions.map<LevelDefinition>((m, index) => {
   let x = 0, y = 0
   const cells = [{ x, y }]
   for (const d of m.path) { x += d === 'R' ? 1 : d === 'L' ? -1 : 0; y += d === 'D' ? 1 : d === 'U' ? -1 : 0; cells.push({ x, y }) }
@@ -143,10 +145,10 @@ export const EXPEDITION_LEVELS: LevelDefinition[] = missions.map((m, index) => {
     expedition: { energy: m.energy }, requireAllResources: true, requireFunctionDef: m.fn,
     requireForLoop: m.loop === 'for', requireWhileLoop: m.loop === 'while',
     starterCode: `# Expedition ${index + 1}: ${m.title}\n${m.setup}\n\n${m.starter}\n`,
-    availableCommands: ['scan()', 'use_tool(name, power)', 'move()', 'turn_left()', 'turn_right()', 'collect()', 'can_move()', 'can_move_left()', 'resource_ahead()', 'at_goal()'],
+    availableCommands: ['scan()', 'use_tool(name, power)', 'move()', 'turn_left()', 'turn_right()', 'collect()', 'can_move()', 'can_move_left()', 'can_move_right()', 'resource_ahead()', 'at_goal()'],
     hints: [m.hint, manual, `Prova:\n${m.setup}\n${m.solution}`],
     showConsole: true, showVariables: true,
     successTip: index === 11 ? 'Utposten är online! Din robot har navigerat, laddat och återställt nätet med ditt eget program.' : 'Uppdrag klart. Robotens nästa expedition väntar!',
     successCheck: ctx => ctx.ranWithoutError && (!m.input || ctx.usedInput) && (index !== 10 || ctx.variables.needed === 13) && (index !== 11 || ctx.consoleLines.some(line => line.includes('UTPOST online')))
   }
-})
+}).concat(ADVANCED_EXPEDITION_LEVELS)
