@@ -450,6 +450,34 @@ code {
   font-size: 0.75rem;
 }
 
+.objective-panel__steps {
+  margin: 8px 0;
+  padding-left: 22px;
+  color: var(--paper);
+  font-size: 0.9rem;
+}
+
+.objective-panel__help {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.objective-panel__help > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.objective-panel__help code {
+  color: var(--amber);
+  overflow-wrap: anywhere;
+}
+
+.objective-panel__help span { color: var(--paper-dim); }
+
 .objective-panel__commands code {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -2044,3 +2072,23 @@ input:focus-visible,
 .mechanism-key--laser { border-color: #ed4772; }
 .mechanism-key--heat { border-color: #ff903f; }
 .mechanism-key--water { border-color: #51bef5; }
+.world-wrapper--expedition { background: radial-gradient(ellipse at 20% 20%, #203d3e 0, #0b161f 65%); border: 1px solid #42676b; border-radius: 12px; }
+.world-wrapper--expedition .tile--wall { background-color: #293e42; }
+.terrain { box-shadow: inset 0 0 0 2px #9ac4cb; }
+.tile--rock { background: repeating-linear-gradient(35deg, #624c38 0 8px, #9b7952 9px 12px); color: #ffe0a6; }
+.tile--gap { background: #020810; color: #a9c7eb; border-left: 3px dashed #7296a4; border-right: 3px dashed #7296a4; }
+.tile--storm { background: repeating-linear-gradient(110deg, #241837 0 8px, #6b378a 9px 12px); color: #f4c9ff; }
+.tile--beacon { background: #123f4e; color: #6be6ff; }
+.terrain__icon { position: absolute; inset: 0; display: grid; place-items: center; font: bold 30px monospace; }
+.terrain--restored { background: #244937; color: #b8ffab; box-shadow: inset 0 0 0 1px #69a989; animation: terrain-restored .5s ease-out; }
+@keyframes terrain-restored { from { filter: brightness(2.5); } to { filter: brightness(1); } }
+.expedition-hud { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; padding: 10px; color: #cde6e4; font-size: 12px; max-width: 620px; background: #10212be8; border-radius: 8px; }
+.expedition-hud details { flex-basis: 100%; line-height: 1.6; }
+.expedition-hud summary { cursor: pointer; color: #8ed5dc; }
+.energy-low { color: #ffb461; }
+@media (prefers-reduced-motion: reduce) { .terrain--restored { animation: none; } }
+/* Keep expedition status/help in normal flow so it never covers terrain. */
+.world-wrapper--expedition { flex-direction: column; justify-content: flex-start; gap: 14px; overflow: auto; }
+.world-wrapper--expedition .world-grid { flex-shrink: 0; }
+.world-wrapper--expedition .world-hud { position: static; flex-wrap: wrap; justify-content: center; width: 100%; flex-shrink: 0; }
+.world-wrapper--expedition .expedition-hud { flex: 1 1 100%; }

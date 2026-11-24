@@ -27,7 +27,7 @@ export function useLevelSession(level: LevelDefinition) {
   const [mazeGrid, setMazeGrid] = useState(level.tileGrid)
   const activeGrid = level.randomMaze ? mazeGrid : level.tileGrid
   const [worldState, setWorldState] = useState<SimWorldState>(() =>
-    createInitialState(level.tileGrid, level.playerStart, level.mechanisms)
+    createInitialState(level.tileGrid, level.playerStart, level.mechanisms, level.expedition)
   )
   const [phase, setPhase] = useState<RunPhase>('idle')
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null)
@@ -91,7 +91,7 @@ export function useLevelSession(level: LevelDefinition) {
     setCompletion(null)
     setMazeGrid(level.tileGrid)
     seenMazes.current = level.randomMaze ? new Set([mazeKey(level.tileGrid)]) : new Set()
-    setWorldState(createInitialState(level.tileGrid, level.playerStart, level.mechanisms))
+    setWorldState(createInitialState(level.tileGrid, level.playerStart, level.mechanisms, level.expedition))
     setPhase('idle')
     setHighlightedLine(null)
     setError(null)
@@ -116,7 +116,7 @@ export function useLevelSession(level: LevelDefinition) {
   // code/console/phase — used after editing the Playground's grid so a
   // freshly-placed coin doesn't render as "already collected".
   const refreshWorld = useCallback(() => {
-    setWorldState(createInitialState(level.tileGrid, level.playerStart, level.mechanisms))
+    setWorldState(createInitialState(level.tileGrid, level.playerStart, level.mechanisms, level.expedition))
   }, [level])
 
   const stop = useCallback(() => {
@@ -136,7 +136,7 @@ export function useLevelSession(level: LevelDefinition) {
     inputsRef.current = []
     consoleRef.current = []
     setCode(level.starterCode)
-    setWorldState(createInitialState(activeGrid, level.playerStart, level.mechanisms))
+    setWorldState(createInitialState(activeGrid, level.playerStart, level.mechanisms, level.expedition))
     setError(null)
     setLastActionNote(null)
     setLastStep(null)
@@ -186,7 +186,7 @@ export function useLevelSession(level: LevelDefinition) {
         return
       }
 
-      const finalState = steps.length ? steps[steps.length - 1].state : createInitialState(grid, level.playerStart, level.mechanisms)
+      const finalState = steps.length ? steps[steps.length - 1].state : createInitialState(grid, level.playerStart, level.mechanisms, level.expedition)
       const variables = finalVars ?? {}
       let won: boolean
       const loopSatisfied = !level.requiredLoop || (level.requiredLoop === 'for' ? movedInFor : movedInWhile)
@@ -322,7 +322,7 @@ export function useLevelSession(level: LevelDefinition) {
         tileGrid: grid,
         playerStart: level.playerStart,
         inputs,
-        doorCondition: level.doorCondition, mechanisms: level.mechanisms,
+        doorCondition: level.doorCondition, mechanisms: level.mechanisms, expedition: level.expedition,
         testFunction: withTests ? level.testFunction : undefined,
         tests: withTests ? level.tests?.map((t) => t.args) : undefined
       })
@@ -382,7 +382,7 @@ export function useLevelSession(level: LevelDefinition) {
     setTestResults(null)
     setFailureReason(null)
     setCompletion(null)
-    setWorldState(createInitialState(grid, level.playerStart, level.mechanisms))
+    setWorldState(createInitialState(grid, level.playerStart, level.mechanisms, level.expedition))
     setRunCount((c) => c + 1)
     setConsoleLines([])
     void execute([], token, grid, debug, withTests)
@@ -429,7 +429,7 @@ export function useLevelSession(level: LevelDefinition) {
       setLastCall(null)
       setLastReturn(null)
       setCurrentVariables(null)
-      setWorldState(createInitialState(activeGrid, level.playerStart, level.mechanisms))
+      setWorldState(createInitialState(activeGrid, level.playerStart, level.mechanisms, level.expedition))
       setConsoleLines([])
       void execute(inputsRef.current, token, activeGrid, debugModeRef.current, testsModeRef.current)
     },
