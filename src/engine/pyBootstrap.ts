@@ -11,8 +11,14 @@ import json as __json
 __RESERVED_NAMES = {
     'move', 'turn_left', 'turn_right', 'collect', 'can_move',
     'resource_ahead', 'at_goal', 'can_move_left', 'can_move_right',
-    'at_corner', 'steps_to_goal', 'print', 'input', 'activate'
+    'at_corner', 'steps_to_goal', 'print', 'input', 'activate', 'scan', 'use_tool'
 }
+
+def scan():
+    return __json.loads(__step_scan(__sys._getframe(1).f_lineno))
+
+def use_tool(name, power):
+    return __step_tool(__sys._getframe(1).f_lineno, name, power)
 
 def move():
     return __step_move(__sys._getframe(1).f_lineno)

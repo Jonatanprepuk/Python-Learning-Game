@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:forensics": "node scripts/test-forensics.mjs",
+    "test:expedition": "node scripts/test-expedition.mjs",
     "test:security": "node scripts/test-security.mjs",
     "test:loops": "node scripts/test-loops.mjs",
     "test:data": "node scripts/test-data.mjs",

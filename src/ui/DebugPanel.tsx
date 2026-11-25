@@ -2,6 +2,7 @@ import type { TraceStep } from '../types'
 import type { RunPhase } from '../hooks/useLevelSession'
 
 const LABELS: Record<TraceStep['type'], string> = {
+  scan: 'scan()', tool: 'use_tool()',
   activate: 'activate()', move: 'move()', turn_left: 'turn_left()', turn_right: 'turn_right()',
   collect: 'collect()', can_move: 'can_move()', can_move_left: 'can_move_left()',
   can_move_right: 'can_move_right()', at_corner: 'at_corner()', steps_to_goal: 'steps_to_goal()',

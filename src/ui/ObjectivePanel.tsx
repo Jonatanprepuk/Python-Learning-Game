@@ -19,6 +19,15 @@ export function ObjectivePanel({ level, levelIndex, totalLevels, worldTitle }: O
       </div>
       <h1 className="objective-panel__title">{level.title}</h1>
       <p className="objective-panel__objective">{level.objective}</p>
+      {level.instructions && <ol className="objective-panel__steps" aria-label="Så gör du">
+        {level.instructions.map(step => <li key={step}>{step}</li>)}
+      </ol>}
+      {level.commandHelp && <div className="objective-panel__help" aria-label="Kommandon i uppgiften">
+        {level.commandHelp.map(command => <div key={command.code}>
+          <code>{command.code}</code>
+          <span>{command.description}</span>
+        </div>)}
+      </div>}
       {['produktionshallen', 'datacentret'].includes(level.world) && (
         <div className="objective-panel__commands" aria-label="Tillgängliga kommandon">
           <span>Tillgängligt:</span>
