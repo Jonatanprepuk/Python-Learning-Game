@@ -21,15 +21,20 @@ import { ObjectWorkshopPanel } from './ui/ObjectWorkshopPanel'
 import { CompletionModal } from './ui/CompletionModal'
 import { HomePage } from './ui/HomePage'
 import { Playground } from './ui/Playground'
+import { ForensicsLab } from './forensics/ForensicsLab'
 
 // BASE_URL is '/' in dev but '/Python-Learning-Game/' when built for the
 // GitHub Pages project page (see vite.config.ts) — routes must be resolved
 // under that prefix or a direct load / refresh of /playground 404s.
 const PLAYGROUND_PATH = `${import.meta.env.BASE_URL}playground`.replace(/\/+$/, '')
 const HOME_PATH = import.meta.env.BASE_URL
+const FORENSICS_PATH = `${import.meta.env.BASE_URL}forensik`.replace(/\/+$/, '')
+type AppRoute = 'app' | 'playground' | 'forensics'
 
-function pathToRoute(pathname: string): 'app' | 'playground' {
-  return pathname.replace(/\/+$/, '') === PLAYGROUND_PATH ? 'playground' : 'app'
+function pathToRoute(pathname: string): AppRoute {
+  const path = pathname.replace(/\/+$/, '')
+  if (path === FORENSICS_PATH) return 'forensics'
+  return path === PLAYGROUND_PATH ? 'playground' : 'app'
 }
 
 /**
@@ -39,7 +44,7 @@ function pathToRoute(pathname: string): 'app' | 'playground' {
  * separate Pyodide workers would load at once.
  */
 export default function App() {
-  const [route, setRoute] = useState<'app' | 'playground'>(() => pathToRoute(window.location.pathname))
+  const [route, setRoute] = useState<AppRoute>(() => pathToRoute(window.location.pathname))
 
   useEffect(() => {
     const onPopState = () => setRoute(pathToRoute(window.location.pathname))
@@ -61,7 +66,14 @@ export default function App() {
     return <Playground onBack={leavePlayground} />
   }
 
-  return <KodrobotApp onOpenPlayground={goToPlayground} />
+  if (route === 'forensics') return <ForensicsLab onBack={leavePlayground} />
+
+  const goToForensics = () => {
+    window.history.pushState(null, '', FORENSICS_PATH)
+    setRoute('forensics')
+  }
+
+  return <KodrobotApp onOpenPlayground={goToPlayground} onOpenForensics={goToForensics} />
 }
 
 const COMPLETED_STORAGE_KEY = 'csa-programmeringskurs:completed-levels'
@@ -85,7 +97,7 @@ function saveCompleted(completed: Set<number>) {
   }
 }
 
-function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
+function KodrobotApp({ onOpenPlayground, onOpenForensics }: { onOpenPlayground: () => void; onOpenForensics: () => void }) {
   const [view, setView] = useState<'home' | 'game'>('home')
   const [levelIndex, setLevelIndex] = useState(0)
   const [completed, setCompleted] = useState<Set<number>>(loadCompleted)
@@ -197,7 +209,7 @@ function KodrobotApp({ onOpenPlayground }: { onOpenPlayground: () => void }) {
             <img src={`${import.meta.env.BASE_URL}logo.webp`} alt="CSA" className="app-header__logo" />
           </div>
         </header>
-        <HomePage worlds={WORLDS} levels={LEVELS} completed={completed} onEnter={enterWorld} onOpenPlayground={onOpenPlayground} />
+        <HomePage worlds={WORLDS} levels={LEVELS} completed={completed} onEnter={enterWorld} onOpenPlayground={onOpenPlayground} onOpenForensics={onOpenForensics} />
       </div>
     )
   }
